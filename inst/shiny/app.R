@@ -1,7 +1,7 @@
 library(shiny)
 library(shinyFiles) 
 ## Ensure required packages are installed and loaded
-required_pkgs <- c("shiny", "shinyFiles")
+required_pkgs <- c("shiny", "shinyFiles", "fs")
 for (pkg in required_pkgs) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     try(install.packages(pkg, repos = "https://cran.rstudio.com"), silent = TRUE)
