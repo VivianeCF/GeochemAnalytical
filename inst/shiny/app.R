@@ -34,6 +34,23 @@ classes <- c(
   "\u00c1gua"
 )
 
+# 🚀 NOVO: Obtém a data de modificação do arquivo app.R
+# Assume-se que o arquivo Shiny está sendo executado como 'app.R'
+app_file_path <- "app.R"
+app_date_info <- tryCatch(
+  {
+    if (file.exists(app_file_path)) {
+      format(file.info(app_file_path)$mtime, "%Y-%m-%d %H:%M:%S")
+    } else {
+      ""
+    }
+  },
+  error = function(e) {
+    "Erro ao ler data do arquivo"
+  }
+)
+
+
 # --- Definição da Interface do Usuário (ui) com dashboardPage ---
 
 ui <- dashboardPage(
@@ -83,10 +100,10 @@ ui <- dashboardPage(
         icon = icon("chart-bar")
       ),
 
-      # 5. Downloads (NOVO MENU)
+      # 5. Downloads
       menuItem("Downloads", tabName = "tab_downloads", icon = icon("download")),
 
-      # 6. Sobre o App (NOVO MENU)
+      # 6. Sobre o App
       menuItem("Sobre o App", tabName = "tab_sobre", icon = icon("info-circle"))
     )
   ),
@@ -195,7 +212,7 @@ ui <- dashboardPage(
         )
       ),
 
-      # --- TAB 5: DOWNLOADS (NOVO CONTEÚDO) ---
+      # --- TAB 5: DOWNLOADS ---
       tabItem(
         tabName = "tab_downloads",
         h2("Baixar Resultados"),
@@ -211,7 +228,7 @@ ui <- dashboardPage(
         )
       ),
 
-      # --- TAB 6: SOBRE O APP (NOVO CONTEÚDO) ---
+      # --- TAB 6: SOBRE O APP (CONTEÚDO ATUALIZADO) ---
       tabItem(
         tabName = "tab_sobre",
         h2("Informações sobre o Aplicativo"),
@@ -234,12 +251,15 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             width = 12,
             tags$ul(
-              tags$li(strong("Versão da Interface:"), " Dashboard v1.1"),
+              tags$li(strong("Data do arquivo app.R:"), app_date_info), # 💡 Inserção da data aqui
               tags$li(
                 strong("Pacotes utilizados:"),
                 " Shiny, shinydashboard, DT."
               ),
-              tags$li(strong("Contato:"), " [Seu Nome/Organização]")
+              tags$li(
+                strong("Contato:"),
+                "Viviane Carillo Ferrari/Serviço Geológico do Brasil (SGB-CPRM) (mailto:viviane.ferrari@sgb.gov.br"
+              )
             )
           )
         )
@@ -449,7 +469,7 @@ server <- function(input, output, session) {
     updateTabItems(session, "tabs", selected = "tab_upload")
   })
 
-  # Downloads UI (MOVido para a nova TAB_DOWNLOADS)
+  # Downloads UI
   output$downloads_ui <- renderUI({
     res <- result()
     if (is.null(res)) {
