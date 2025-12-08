@@ -1,5 +1,5 @@
 ## Garantir que os pacotes necessários estejam instalados e carregados
-required_pkgs <- c("shiny", "shinydashboard", "DT") # Adicionado DT para tabelas
+required_pkgs <- c("shiny", "shinydashboard", "DT")
 for (pkg in required_pkgs) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     try(
@@ -38,12 +38,12 @@ classes <- c(
 
 ui <- dashboardPage(
   # 1. Cabeçalho (Header)
-  dashboardHeader(title = "Leitor de Boletins - ACME / GEOSOL"),
+  dashboardHeader(title = "GeochemAnalytical"),
 
   # 2. Barra Lateral (Sidebar)
   dashboardSidebar(
     sidebarMenu(
-      id = "tabs", # Adicionando um ID para o controle
+      id = "tabs",
 
       # 1. Entrada de Dados
       menuItem(
@@ -81,7 +81,13 @@ ui <- dashboardPage(
         "Estatísticas",
         tabName = "tab_estatisticas",
         icon = icon("chart-bar")
-      )
+      ),
+
+      # 5. Downloads (NOVO MENU)
+      menuItem("Downloads", tabName = "tab_downloads", icon = icon("download")),
+
+      # 6. Sobre o App (NOVO MENU)
+      menuItem("Sobre o App", tabName = "tab_sobre", icon = icon("info-circle"))
     )
   ),
 
@@ -140,13 +146,13 @@ ui <- dashboardPage(
       # Sub-item: Ação e Status
       tabItem(
         tabName = "sub_status",
-        h2("Execução e Download"),
+        h2("Execução e Status"),
         fluidRow(
           box(
             title = "Controle e Status",
             status = "primary",
             solidHeader = TRUE,
-            width = 6,
+            width = 12,
             p(
               "Clique em 'Processar' após configurar as opções e carregar o arquivo ZIP."
             ),
@@ -165,13 +171,6 @@ ui <- dashboardPage(
             hr(),
             strong("Status da Execução:"),
             verbatimTextOutput("status")
-          ),
-          box(
-            title = "Downloads",
-            status = "success",
-            solidHeader = TRUE,
-            width = 6,
-            uiOutput("downloads_ui")
           )
         )
       ),
@@ -180,7 +179,6 @@ ui <- dashboardPage(
       tabItem(
         tabName = "tab_visualizacao",
         h2("Visualização dos Dados Processados"),
-        # Aqui, vamos renderizar dinamicamente as tabelas de dados
         uiOutput("data_tables_ui")
       ),
 
@@ -193,8 +191,57 @@ ui <- dashboardPage(
           status = "info",
           solidHeader = TRUE,
           width = 12,
-          # Saída para a tabela de contagem de amostras
           uiOutput("stats_ui")
+        )
+      ),
+
+      # --- TAB 5: DOWNLOADS (NOVO CONTEÚDO) ---
+      tabItem(
+        tabName = "tab_downloads",
+        h2("Baixar Resultados"),
+        box(
+          title = "Arquivos Processados",
+          status = "success",
+          solidHeader = TRUE,
+          width = 6,
+          p(
+            "Baixe todos os arquivos de saída (dados, meta-dados, etc.) em um único arquivo ZIP. Os arquivos CSV usam o formato Latin-1."
+          ),
+          uiOutput("downloads_ui")
+        )
+      ),
+
+      # --- TAB 6: SOBRE O APP (NOVO CONTEÚDO) ---
+      tabItem(
+        tabName = "tab_sobre",
+        h2("Informações sobre o Aplicativo"),
+        fluidRow(
+          box(
+            title = "Objetivo",
+            status = "info",
+            solidHeader = TRUE,
+            width = 12,
+            p(
+              "Este aplicativo Shiny tem como objetivo simplificar a leitura e o processamento de boletins de análise geoquímica (química) dos laboratórios ACME e GEOSOL, transformando os resultados brutos em dados tabulares prontos para análise e visualização."
+            ),
+            p(
+              "O processamento é realizado pelas funções R `le_boletim_quimica_acme` e `le_boletim_quimica_geosol`."
+            )
+          ),
+          box(
+            title = "Desenvolvedor/Versão",
+            status = "warning",
+            solidHeader = TRUE,
+            width = 12,
+            tags$ul(
+              tags$li(strong("Versão da Interface:"), " Dashboard v1.1"),
+              tags$li(
+                strong("Pacotes utilizados:"),
+                " Shiny, shinydashboard, DT."
+              ),
+              tags$li(strong("Contato:"), " [Seu Nome/Organização]")
+            )
+          )
         )
       )
     )
@@ -203,8 +250,6 @@ ui <- dashboardPage(
 
 # --- Definição do Servidor (server) ---
 server <- function(input, output, session) {
-  # ... (Código do Servidor inalterado, exceto pelas novas saídas) ...
-
   result <- reactiveVal(NULL)
   status_msg <- reactiveVal("Aguardando execução...")
   selected_dir <- reactiveVal(NULL)
@@ -310,7 +355,7 @@ server <- function(input, output, session) {
       return()
     }
 
-    # *MUDANÇA DE NAVEGAÇÃO*: Mover para a aba de status após o clique
+    # Mover para a aba de status após o clique
     updateTabItems(session, "tabs", selected = "sub_status")
 
     td_up <- tempfile("uploaded_boletins")
@@ -388,7 +433,7 @@ server <- function(input, output, session) {
     # store metadata for naming (classe used and lab)
     last_meta(list(classe = classe_use, lab = input$lab))
     status_msg(
-      "Leitura concluída. Use os botões abaixo para baixar os CSVs ou visualize na aba 'Visualização'."
+      "Leitura concluída. Os downloads, tabelas e estatísticas estão disponíveis nas abas laterais."
     )
   })
 
@@ -400,14 +445,17 @@ server <- function(input, output, session) {
     updateRadioButtons(session, "lab", selected = "ACME")
     updateSelectInput(session, "classe_am", selected = classes[2])
 
-    # *MUDANÇA DE NAVEGAÇÃO*: Voltar para a aba de upload
+    # Voltar para a aba de upload
     updateTabItems(session, "tabs", selected = "tab_upload")
   })
 
+  # Downloads UI (MOVido para a nova TAB_DOWNLOADS)
   output$downloads_ui <- renderUI({
     res <- result()
     if (is.null(res)) {
-      return(NULL)
+      return(p(
+        "Processamento pendente. Os dados estarão disponíveis aqui após a execução."
+      ))
     }
     tagList(
       downloadButton("zip_all", "Baixar todos (.zip)", class = "btn-info")
@@ -417,8 +465,6 @@ server <- function(input, output, session) {
   output$status <- renderText({
     status_msg()
   })
-
-  # --- NOVAS SAÍDAS ---
 
   # 1. VISUALIZAÇÃO (Tabelas)
   output$data_tables_ui <- renderUI({
@@ -475,8 +521,8 @@ server <- function(input, output, session) {
     }
 
     # Tenta calcular estatísticas, assumindo que há uma coluna de ID de boletim
-    if ("BOLETIM" %in% names(main_data) || "BULLETIN" %in% names(main_data)) {
-      bol_col <- intersect(c("BOLETIM", "BULLETIN"), names(main_data))[1]
+    if ("Boletim" %in% names(main_data) || "BULLETIN" %in% names(main_data)) {
+      bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))[1]
 
       # Tabela de contagem: Boletim e Número de Amostras
       if (requireNamespace("dplyr", quietly = TRUE)) {
@@ -508,7 +554,7 @@ server <- function(input, output, session) {
       )
     } else {
       return(p(
-        "Coluna 'BOLETIM' não encontrada para calcular estatísticas de contagem."
+        "Coluna 'Boletim' não encontrada para calcular estatísticas de contagem."
       ))
     }
   })
