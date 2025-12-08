@@ -16,7 +16,7 @@ Thumbs.db
 *.swo
 
 # Project-specific
-outputs/base_geoquimica/
+outputs/
 inputs/boletins_raw/
 *.csv
 !inputs/nomes_info.csv
