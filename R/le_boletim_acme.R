@@ -308,15 +308,16 @@ if(!is.na(indices_status[1])){
   df_bruto_pivo <- df_bruto_pivo[!is.na(df_bruto_pivo$valor), ]
   
   df_bruto_pivo <- df_bruto_pivo |>
-    # 1. Extração
+    # 1. Extração — limpa espaços em branco antes
     dplyr::mutate(
+      valor = stringr::str_trim(valor),
       Valor_Num_Char = stringr::str_extract(valor, "^[^\\s]+"), 
       Qualificador_Temp = stringr::str_extract(valor, "[<>]")   
     ) |>
     
-    # 2. Conversão (SEM ARREDONDAMENTO)
+    # 2. Conversão — suprime warnings de coerção e trata valores inválidos
     dplyr::mutate(
-      Valor_Numerico_Convertido = as.numeric(Valor_Num_Char)
+      Valor_Numerico_Convertido = suppressWarnings(as.numeric(Valor_Num_Char))
     ) |>
     
     # 3. Lógica Condicional (case_when)
@@ -380,7 +381,7 @@ if(!is.na(indices_status[1])){
       gsub(",", "\\.", x)))
   df_sc_transf <-
     df_sc_transf |> dplyr::mutate(dplyr::across(5:ncol(df_sc_transf),
-                                                ~ as.numeric(.)))
+                                                ~ suppressWarnings(as.numeric(.))))
   
   df_sc_05ld <- ltdl.fix.df(df_sc_transf)
 
@@ -396,8 +397,9 @@ if(!is.na(indices_status[1])){
   df2 <- df2[!is.na(df2$valor), ]
   
   ## Cria colunas analito e unidade
+  ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
   df2 <- df2 |>
-    tidyr::separate(analito, c("analito", "unidade"), "_")
+    tidyr::separate(analito, c("analito", "unidade"), "_", extra = "merge", fill = "right")
 
   
   ## QAQC  
@@ -429,15 +431,16 @@ if(!is.na(indices_status[1])){
   QAQC_orig_pivo <- QAQC_orig_pivo[!is.na(QAQC_orig_pivo$valor), ]
   
   QAQC_orig_pivo <- QAQC_orig_pivo |>
-    # 1. Extração
+    # 1. Extração — limpa espaços em branco antes
     dplyr::mutate(
+      valor = stringr::str_trim(valor),
       Valor_Num_Char = stringr::str_extract(valor, "^[^\\s]+"), 
       Qualificador_Temp = stringr::str_extract(valor, "[<>]")   
     ) |>
     
-    # 2. Conversão (SEM ARREDONDAMENTO)
+    # 2. Conversão — suprime warnings de coerção e trata valores inválidos
     dplyr::mutate(
-      Valor_Numerico_Convertido = as.numeric(Valor_Num_Char)
+      Valor_Numerico_Convertido = suppressWarnings(as.numeric(Valor_Num_Char))
     ) |>
     
     # 3. Lógica Condicional (case_when)
@@ -510,7 +513,7 @@ if(!is.na(indices_status[1])){
       gsub(",", "\\.", x)))
   QAQC_transf <-
     QAQC_transf |> dplyr::mutate(dplyr::across(5:(ncol(QAQC_transf)),
-                                                ~ as.numeric(.)))
+                                                ~ suppressWarnings(as.numeric(.))))
   QAQC_05ld <- ltdl.fix.df(QAQC_transf)
   
 
