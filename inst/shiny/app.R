@@ -24,6 +24,9 @@ if (file.exists("R/le_boletim_acme.R")) {
 if (file.exists("R/le_boletim_geosol.R")) {
   source("R/le_boletim_geosol.R")
 }
+# Cria um caminho de recurso explícito para a pasta www/
+# O nome 'icons' é o que será usado na URL web
+addResourcePath("icons", "www")
 
 # class names used by both labs (index 1..5)
 classes <- c(
@@ -110,6 +113,22 @@ ui <- dashboardPage(
 
   # 3. Corpo (Body)
   dashboardBody(
+        # Adiciona CSS personalizado
+    tags$style(HTML(
+      "
+    #tab_sobre {
+      margin-bottom: 10px; /* Adiciona margem abaixo de cada parágrafo */
+      line-height: 1.5; /* Aumenta o espaçamento entre linhas */
+      text-align: justify; /* Justifica o texto */
+      font-size: 1.5em;
+    }
+            .logo-image {
+          display: block;
+          margin-left: auto;
+          margin-right: auto;
+        }
+  "
+    )),
     tabItems(
       # --- TAB 1: ENTRADA DE DADOS (UPLOAD) ---
       tabItem(
@@ -231,6 +250,8 @@ ui <- dashboardPage(
       # --- TAB 6: SOBRE O APP (CONTEÚDO ATUALIZADO) ---
       tabItem(
         tabName = "tab_sobre",
+        img(src = "icons/logo.jpg", width = 100, units = "%", alt = "Sua Foto", class = "logo-image"),
+
         h2("Informações sobre o Aplicativo"),
         fluidRow(
           box(
