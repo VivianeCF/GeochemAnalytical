@@ -204,7 +204,7 @@ le_boletim_quimica_geosol <- function(
       "cliente",
       "data do arquivo",
       "Boletim",
-      "no. de amostras",
+      "no. de amostras + branco prep.",
       "projeto",
       "ship",
       "entrega dos resultados"
@@ -550,7 +550,7 @@ le_boletim_quimica_geosol <- function(
   out[[5]] <- QAQC_orig # dados de qaqc bruto
   out[[6]] <- QAQC_05ld # dados de qaqc transformados
   out[[7]] <- ref # dados de informação do boletim
-  out[[8]] <- lab_bol # dados da relação boletim e laboratório
+  out[[8]] <- ib_da # dados da relação boletim e laboratório
 
   write.csv2(
     dpivo,
@@ -571,8 +571,14 @@ le_boletim_quimica_geosol <- function(
     row.names = FALSE
   )
   write.csv2(
+    ib_da,
+    paste0(dir_out, "condições_analíticas.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
+    write.csv2(
     ref,
-    paste0(dir_out, "informação_boletim.csv"),
+    paste0(dir_out, "informações_boletins.csv"),
     fileEncoding = "latin1",
     row.names = FALSE
   )
@@ -584,8 +590,8 @@ le_boletim_quimica_geosol <- function(
     "dados transformados pivotados",
     "dados qaqc bruto",
     "dados qaqc transformados",
-    "informa\u00e7\u00e3o do boletim",
-    "boletim e laborat\u00f3rio"
+    "condições de análise",
+    "informações dos boletins"
   )
 
   return(out)

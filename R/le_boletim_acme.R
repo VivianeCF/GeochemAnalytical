@@ -564,13 +564,19 @@ if(!is.na(indices_status[1])){
   out[[5]] <- QAQC_orig # dados de qaqc bruto
   out[[6]] <- QAQC_05ld # dados de qaqc transformados
   out[[7]] <- ref # dados de informação do boletim
-  out[[8]] <- lab_bol # dados da relação boletim e laboratório
+  out[[8]] <- ib_da # dados da relação boletim e laboratório
 
   write.csv2(dpivo, paste0(dir_out, "dados_analíticos_brutos.csv"), fileEncoding = "latin1", row.names = FALSE)
   write.csv2(df_sc_05ld, paste0(dir_out, "dados_analíticos_transformados.csv"), fileEncoding = "latin1", row.names = FALSE)
   write.csv2(QAQC_05ld, paste0(dir_out, "dados_qaqc_transformados.csv"), fileEncoding = "latin1", row.names = FALSE)
   write.csv2(ref, paste0(dir_out, "informação_boletim.csv"), fileEncoding = "latin1", row.names = FALSE)
-  
+    write.csv2(
+    ib_da,
+    paste0(dir_out, "condições_analíticas.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )  
+
   names(out) <- c(
     "dados brutos",
     "dados transformados",
@@ -578,8 +584,9 @@ if(!is.na(indices_status[1])){
     "dados transformados pivotados",
     "dados qaqc bruto",
     "dados qaqc transformados",
-    "informa\u00e7\u00e3o do boletim",
-    "boletim e laborat\u00f3rio")
+    "condições de análise",
+    "informações dos boletins"
+  )
   
   return(out)
   
