@@ -1,5 +1,5 @@
 ## Garantir que os pacotes necessários estejam instalados e carregados
-required_pkgs <- c("shiny", "shinydashboard") # Adicionado shinydashboard
+required_pkgs <- c("shiny", "shinydashboard", "DT") # Adicionado DT para tabelas
 for (pkg in required_pkgs) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     try(
@@ -38,61 +38,163 @@ classes <- c(
 
 ui <- dashboardPage(
   # 1. Cabeçalho (Header)
-  dashboardHeader(title = "Leitor de boletins - ACME / GEOSOL"),
+  dashboardHeader(title = "Leitor de Boletins - ACME / GEOSOL"),
 
   # 2. Barra Lateral (Sidebar)
   dashboardSidebar(
-    # Nota: Em shinydashboard, a largura da barra lateral é definida no CSS (padrão 230px),
-    # não diretamente no sidebarPanel como no fluidPage.
     sidebarMenu(
+      id = "tabs", # Adicionando um ID para o controle
+
+      # 1. Entrada de Dados
       menuItem(
-        "Opções de Leitura",
-        tabName = "leitura_tab",
-        icon = icon("gears")
+        "Entrada de Dados",
+        tabName = "tab_upload",
+        icon = icon("file-upload")
       ),
-      # Conteúdo principal da barra lateral
-      fileInput(
-        "upload",
-        "Enviar um arquivo .zip com os boletins (apenas ZIP).",
-        multiple = FALSE,
-        accept = c(".zip")
+
+      # 2. Processamento
+      menuItem(
+        "Processamento",
+        tabName = "tab_processamento",
+        icon = icon("cogs"),
+        menuSubItem(
+          "Configurações de Leitura",
+          tabName = "sub_leitura",
+          icon = icon("sliders")
+        ),
+        menuSubItem(
+          "Ação e Status",
+          tabName = "sub_status",
+          icon = icon("play")
+        )
       ),
-      radioButtons(
-        "lab",
-        "Laboratório",
-        choices = c("ACME", "GEOSOL"),
-        selected = "ACME"
+
+      # 3. Visualização
+      menuItem(
+        "Visualização",
+        tabName = "tab_visualizacao",
+        icon = icon("table")
       ),
-      selectInput(
-        "classe_am",
-        "Classe da amostra",
-        choices = classes,
-        selected = classes[2]
-      ),
-      actionButton(
-        "run",
-        "Ler boletins e preparar downloads",
-        class = "btn-primary"
-      ),
-      actionButton("reset", "Nova leitura", class = "btn-secondary")
+
+      # 4. Estatísticas
+      menuItem(
+        "Estatísticas",
+        tabName = "tab_estatisticas",
+        icon = icon("chart-bar")
+      )
     )
   ),
 
   # 3. Corpo (Body)
   dashboardBody(
     tabItems(
+      # --- TAB 1: ENTRADA DE DADOS (UPLOAD) ---
       tabItem(
-        tabName = "leitura_tab",
-        h2("Status e Downloads"),
-        # Você pode usar 'box' para envolver o conteúdo em um container com estilo de dashboard
+        tabName = "tab_upload",
+        h2("Upload do Arquivo ZIP"),
         box(
-          title = "Resultados da Leitura",
-          status = "primary", # Cor do box
-          solidHeader = TRUE, # Título com cor sólida
-          width = 12, # Ocupa toda a largura do dashboardBody
-          uiOutput("downloads_ui"),
-          hr(),
-          verbatimTextOutput("status")
+          title = "Selecione o Arquivo",
+          status = "info",
+          solidHeader = TRUE,
+          width = 12,
+          fileInput(
+            "upload",
+            "Enviar um arquivo .zip com os boletins (apenas ZIP).",
+            multiple = FALSE,
+            accept = c(".zip")
+          ),
+          p(em(
+            "O arquivo ZIP deve conter os boletins de análise no formato adequado."
+          ))
+        )
+      ),
+
+      # --- TAB 2: PROCESSAMENTO (SUB-ITENS) ---
+
+      # Sub-item: Configurações de Leitura
+      tabItem(
+        tabName = "sub_leitura",
+        h2("Configurações do Processamento"),
+        fluidRow(
+          box(
+            title = "Opções do Laboratório e Amostra",
+            status = "warning",
+            solidHeader = TRUE,
+            width = 6,
+            radioButtons(
+              "lab",
+              "Laboratório",
+              choices = c("ACME", "GEOSOL"),
+              selected = "ACME"
+            ),
+            selectInput(
+              "classe_am",
+              "Classe da amostra",
+              choices = classes,
+              selected = classes[2]
+            )
+          )
+        )
+      ),
+
+      # Sub-item: Ação e Status
+      tabItem(
+        tabName = "sub_status",
+        h2("Execução e Download"),
+        fluidRow(
+          box(
+            title = "Controle e Status",
+            status = "primary",
+            solidHeader = TRUE,
+            width = 6,
+            p(
+              "Clique em 'Processar' após configurar as opções e carregar o arquivo ZIP."
+            ),
+            actionButton(
+              "run",
+              "Processar Boletins",
+              icon = icon("sync-alt"),
+              class = "btn-success"
+            ),
+            actionButton(
+              "reset",
+              "Nova Leitura",
+              icon = icon("undo"),
+              class = "btn-secondary"
+            ),
+            hr(),
+            strong("Status da Execução:"),
+            verbatimTextOutput("status")
+          ),
+          box(
+            title = "Downloads",
+            status = "success",
+            solidHeader = TRUE,
+            width = 6,
+            uiOutput("downloads_ui")
+          )
+        )
+      ),
+
+      # --- TAB 3: VISUALIZAÇÃO ---
+      tabItem(
+        tabName = "tab_visualizacao",
+        h2("Visualização dos Dados Processados"),
+        # Aqui, vamos renderizar dinamicamente as tabelas de dados
+        uiOutput("data_tables_ui")
+      ),
+
+      # --- TAB 4: ESTATÍSTICAS ---
+      tabItem(
+        tabName = "tab_estatisticas",
+        h2("Estatísticas e Resumo"),
+        box(
+          title = "Contagem de Amostras por Boletim",
+          status = "info",
+          solidHeader = TRUE,
+          width = 12,
+          # Saída para a tabela de contagem de amostras
+          uiOutput("stats_ui")
         )
       )
     )
@@ -100,10 +202,9 @@ ui <- dashboardPage(
 )
 
 # --- Definição do Servidor (server) ---
-# A função server permanece inalterada, pois ela lida com a lógica de back-end
-# e não com o layout visual.
-
 server <- function(input, output, session) {
+  # ... (Código do Servidor inalterado, exceto pelas novas saídas) ...
+
   result <- reactiveVal(NULL)
   status_msg <- reactiveVal("Aguardando execução...")
   selected_dir <- reactiveVal(NULL)
@@ -121,6 +222,7 @@ server <- function(input, output, session) {
   # root used to resolve relative paths (app working directory at launch)
   app_root <- normalizePath(".", winslash = "/", mustWork = FALSE)
 
+  # (função resolve_dir omitida por brevidade, mas deve ser mantida)
   resolve_dir <- function(path) {
     path <- trimws(path)
     if (identical(path, "") || is.na(path)) {
@@ -207,6 +309,10 @@ server <- function(input, output, session) {
       result(NULL)
       return()
     }
+
+    # *MUDANÇA DE NAVEGAÇÃO*: Mover para a aba de status após o clique
+    updateTabItems(session, "tabs", selected = "sub_status")
+
     td_up <- tempfile("uploaded_boletins")
     dir.create(td_up, recursive = TRUE, showWarnings = FALSE)
     uploaded_temp_dir_path <<- td_up
@@ -281,7 +387,9 @@ server <- function(input, output, session) {
     result(res)
     # store metadata for naming (classe used and lab)
     last_meta(list(classe = classe_use, lab = input$lab))
-    status_msg("Leitura concluída. Use os botões abaixo para baixar os CSVs.")
+    status_msg(
+      "Leitura concluída. Use os botões abaixo para baixar os CSVs ou visualize na aba 'Visualização'."
+    )
   })
 
   # allow starting a new reading: clear previous outputs and reset inputs
@@ -291,6 +399,9 @@ server <- function(input, output, session) {
     selected_dir(NULL)
     updateRadioButtons(session, "lab", selected = "ACME")
     updateSelectInput(session, "classe_am", selected = classes[2])
+
+    # *MUDANÇA DE NAVEGAÇÃO*: Voltar para a aba de upload
+    updateTabItems(session, "tabs", selected = "tab_upload")
   })
 
   output$downloads_ui <- renderUI({
@@ -299,7 +410,7 @@ server <- function(input, output, session) {
       return(NULL)
     }
     tagList(
-      downloadButton("zip_all", "Baixar todos (.zip)")
+      downloadButton("zip_all", "Baixar todos (.zip)", class = "btn-info")
     )
   })
 
@@ -307,7 +418,102 @@ server <- function(input, output, session) {
     status_msg()
   })
 
-  # create download handlers dynamically when result changes
+  # --- NOVAS SAÍDAS ---
+
+  # 1. VISUALIZAÇÃO (Tabelas)
+  output$data_tables_ui <- renderUI({
+    res <- result()
+    if (is.null(res)) {
+      return(
+        p(
+          "Execute o processamento na aba 'Processamento' para visualizar as tabelas."
+        )
+      )
+    }
+
+    # Cria uma lista de outputs de DataTable
+    tabs <- lapply(names(res), function(nm) {
+      data <- res[[nm]]
+      if (is.data.frame(data)) {
+        # Criar o output de renderização da tabela
+        output_name <- paste0("table_", gsub("[^a-zA-Z0-9]", "_", nm))
+        output[[output_name]] <- DT::renderDataTable(
+          data,
+          options = list(pageLength = 10, scrollX = TRUE),
+          server = FALSE # Processamento no cliente
+        )
+
+        return(tabPanel(
+          title = nm,
+          DT::dataTableOutput(output_name)
+        ))
+      }
+    })
+
+    do.call(tabsetPanel, c(tabs, id = "dynamic_tables"))
+  })
+
+  # 2. ESTATÍSTICAS (Contagem)
+  output$stats_ui <- renderUI({
+    res <- result()
+    if (is.null(res)) {
+      return(p("Execute o processamento para gerar estatísticas."))
+    }
+
+    # Assume que a principal tabela de dados é 'dados' ou a primeira
+    main_data <- NULL
+    if ("dados" %in% names(res)) {
+      main_data <- res[["dados"]]
+    } else if (length(res) > 0 && is.data.frame(res[[1]])) {
+      main_data <- res[[1]]
+    }
+
+    if (is.null(main_data)) {
+      return(p(
+        "Dados processados não encontrados ou não estão no formato de tabela."
+      ))
+    }
+
+    # Tenta calcular estatísticas, assumindo que há uma coluna de ID de boletim
+    if ("BOLETIM" %in% names(main_data) || "BULLETIN" %in% names(main_data)) {
+      bol_col <- intersect(c("BOLETIM", "BULLETIN"), names(main_data))[1]
+
+      # Tabela de contagem: Boletim e Número de Amostras
+      if (requireNamespace("dplyr", quietly = TRUE)) {
+        stats_data <- main_data %>%
+          dplyr::group_by(!!rlang::sym(bol_col)) %>%
+          dplyr::summarise(N_Amostras = dplyr::n(), .groups = 'drop')
+      } else {
+        stats_data <- aggregate(
+          x = rep(1, nrow(main_data)),
+          by = list(Boletim = main_data[[bol_col]]),
+          FUN = length
+        )
+        names(stats_data) <- c("Boletim", "N_Amostras")
+      }
+
+      output$count_table <- DT::renderDataTable(
+        stats_data,
+        options = list(pageLength = 10),
+        rownames = FALSE
+      )
+
+      return(
+        tagList(
+          DT::dataTableOutput("count_table"),
+          hr(),
+          p(paste("Total de boletins processados:", nrow(stats_data))),
+          p(paste("Total de amostras processadas:", sum(stats_data$N_Amostras)))
+        )
+      )
+    } else {
+      return(p(
+        "Coluna 'BOLETIM' não encontrada para calcular estatísticas de contagem."
+      ))
+    }
+  })
+
+  # download handler for zip of all outputs (mantido inalterado)
   observeEvent(
     result(),
     {
