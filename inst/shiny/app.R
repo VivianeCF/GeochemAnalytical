@@ -1,7 +1,5 @@
-library(shiny)
-library(shinyFiles) 
 ## Ensure required packages are installed and loaded
-required_pkgs <- c("shiny", "shinyFiles", "fs")
+required_pkgs <- c("shiny")
 for (pkg in required_pkgs) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
     try(install.packages(pkg, repos = "https://cran.rstudio.com"), silent = TRUE)
@@ -10,6 +8,7 @@ for (pkg in required_pkgs) {
 suppressPackageStartupMessages({
   lapply(required_pkgs, require, character.only = TRUE)
 })
+
 # Simple Shiny app to run le_boletim_acme / le_boletim_geosol
 # and provide CSV downloads of the returned list elements.
 

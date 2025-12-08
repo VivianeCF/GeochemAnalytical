@@ -23,6 +23,7 @@ le_boletim_quimica_geosol <- function(
   ref_ucc,
   dir_out
 ) {
+   source("R/ltdl.fix.df.R")
   ## Diretórios de entrada dos dados
   classes <-
     c(
@@ -347,7 +348,7 @@ le_boletim_quimica_geosol <- function(
     df_sc_transf |>
     dplyr::mutate(dplyr::across(5:ncol(df_sc_transf), ~ as.numeric(.)))
 
-  df_sc_05ld <- rgr::ltdl.fix.df(df_sc_transf)
+  df_sc_05ld <- ltdl.fix.df(df_sc_transf)
 
   ## Pivoteia os dados transformados
   df2 <- df_sc_05ld |>
@@ -482,7 +483,7 @@ le_boletim_quimica_geosol <- function(
   QAQC_transf <-
     QAQC_transf |>
     dplyr::mutate(dplyr::across(5:(ncol(QAQC_transf)), ~ as.numeric(.)))
-  QAQC_05ld <- rgr::ltdl.fix.df(QAQC_transf)
+  QAQC_05ld <- ltdl.fix.df(QAQC_transf)
 
   # Cria tabela com a relação de boletim e laboratório
   lab_bol <- unique(ca_da[, c('Boletim', 'Laborat\u00f3rio')])

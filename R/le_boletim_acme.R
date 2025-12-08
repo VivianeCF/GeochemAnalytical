@@ -17,7 +17,7 @@
 #' @examples
 #' # le_boletim_quimica()
 le_boletim_quimica_acme <- function(classe_am, dir_bol, dir_ucc, ref_ucc, dir_out) {
- 
+ source("R/ltdl.fix.df.R")
   ## Diretórios de entrada dos dados
   classes <-
     c("Concentrado de bateia",
@@ -382,7 +382,7 @@ if(!is.na(indices_status[1])){
     df_sc_transf |> dplyr::mutate(dplyr::across(5:ncol(df_sc_transf),
                                                 ~ as.numeric(.)))
   
-  df_sc_05ld <- rgr::ltdl.fix.df(df_sc_transf)
+  df_sc_05ld <- ltdl.fix.df(df_sc_transf)
 
   ## Pivoteia os dados transformados
   df2 <- df_sc_05ld |>
@@ -511,7 +511,7 @@ if(!is.na(indices_status[1])){
   QAQC_transf <-
     QAQC_transf |> dplyr::mutate(dplyr::across(5:(ncol(QAQC_transf)),
                                                 ~ as.numeric(.)))
-  QAQC_05ld <- rgr::ltdl.fix.df(QAQC_transf)
+  QAQC_05ld <- ltdl.fix.df(QAQC_transf)
   
 
   # Cria tabela com a relação de boletim e laboratório
