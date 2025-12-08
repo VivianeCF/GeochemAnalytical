@@ -9,6 +9,9 @@ suppressPackageStartupMessages({
   lapply(required_pkgs, require, character.only = TRUE)
 })
 
+# allow larger uploads (200 MB)
+options(shiny.maxRequestSize = 200 * 1024^2)
+
 # Simple Shiny app to run le_boletim_acme / le_boletim_geosol
 # and provide CSV downloads of the returned list elements.
 
@@ -32,11 +35,11 @@ ui <- fluidPage(
   titlePanel("Leitor de boletins - ACME / GEOSOL"),
   sidebarLayout(
     sidebarPanel(
-      helpText("Escolha um diretório com o botão abaixo."),
-      shinyDirButton(
-        "dir_sel",
-        "Escolher diretório...",
-        "Selecionar diretório"
+      fileInput(
+        "upload",
+        "Enviar um arquivo .zip com os boletins (apenas ZIP).",
+        multiple = FALSE,
+        accept = c(".zip")
       ),
       radioButtons(
         "lab",
@@ -66,25 +69,19 @@ server <- function(input, output, session) {
   result <- reactiveVal(NULL)
   status_msg <- reactiveVal("Aguardando execução...")
   selected_dir <- reactiveVal(NULL)
+  uploaded_temp_dir_path <- NULL
   last_meta <- reactiveVal(list(classe = NA, lab = NA))
+
+  # ensure uploaded temp files are removed when session ends
+  session$onSessionEnded(function() {
+    td <- uploaded_temp_dir_path
+    if (!is.null(td) && dir.exists(td)) {
+      try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
+    }
+  })
 
   # root used to resolve relative paths (app working directory at launch)
   app_root <- normalizePath(".", winslash = "/", mustWork = FALSE)
-
-  # configure roots for shinyFiles directory chooser
-  roots <- c(
-    Home = normalizePath("~", winslash = "/", mustWork = FALSE),
-    Project = app_root
-  )
-  shinyFiles::shinyDirChoose(input, "dir_sel", roots = roots, session = session)
-
-  observeEvent(input$dir_sel, {
-    req(input$dir_sel)
-    sel <- shinyFiles::parseDirPath(roots, input$dir_sel)
-    if (length(sel) > 0) {
-      selected_dir(sel)
-    }
-  })
 
   resolve_dir <- function(path) {
     path <- trimws(path)
@@ -155,31 +152,24 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$run, {
-    dir_bol <- selected_dir()
-    if (is.null(dir_bol) || identical(dir_bol, "")) {
-      status_msg(
-        "Nenhum diretório selecionado. Use 'Escolher diretório...' para selecionar a pasta dos boletins."
-      )
-      result(NULL)
-      return()
-    }
-    resolved <- resolve_dir(dir_bol)
-    if (is.na(resolved)) {
-      status_msg(paste0(
-        "Diretório não encontrado: '",
-        dir_bol,
-        "'\n",
-        "App working dir: ",
-        app_root,
-        "\n",
-        "Cole um caminho absoluto, 'file://...' ou um caminho relativo a '",
-        app_root,
-        "'."
-      ))
-      result(NULL)
-      return()
-    }
-    dir_bol <- resolved
+      # Expect a single ZIP upload; do not accept server-side paths
+      if (is.null(input$upload) || nrow(input$upload) == 0) {
+        status_msg("Nenhum arquivo enviado. Envie um arquivo .zip com os boletins.")
+        result(NULL)
+        return()
+      }
+      up <- input$upload
+      name <- up$name
+      if (!grepl("\\.zip$", name, ignore.case = TRUE)) {
+        status_msg("Arquivo inválido. Envie um arquivo .zip contendo os boletins.")
+        result(NULL)
+        return()
+      }
+      td_up <- tempfile("uploaded_boletins")
+      dir.create(td_up, recursive = TRUE, showWarnings = FALSE)
+      uploaded_temp_dir_path <<- td_up
+      utils::unzip(up$datapath, exdir = td_up)
+      dir_bol <- normalizePath(td_up, winslash = "/", mustWork = FALSE)
     # ensure directory path ends with a slash to avoid filename concatenation
     if (dir.exists(dir_bol)) {
       dir_bol <- normalizePath(dir_bol, winslash = "/", mustWork = FALSE)
@@ -388,6 +378,8 @@ server <- function(input, output, session) {
             setwd(td)
             utils::zip(zipfile, files = basename(files), flags = "-j")
           }
+          # cleanup temporary files used to assemble the zip
+          try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
         }
       )
 
