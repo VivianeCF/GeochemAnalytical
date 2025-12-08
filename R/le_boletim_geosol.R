@@ -372,7 +372,7 @@ le_boletim_quimica_geosol <- function(
   df_bk <-
     df_sc[df_sc$N_LAB == "BRANCO_PREP", ]
 
-  df_rp <- df_sc[df_sc$classe_am == "REP" | df_sc$classe_am == "DUP", ]
+  df_rp <- df_sc[df_sc$classe_am == "REP" | df_sc$classe_am == "DUP" | df_sc$classe_am == "STD", ]
 
   df_sd <- df_sc[df_sc$N_LAB == "STD", ]
 
@@ -514,11 +514,21 @@ le_boletim_quimica_geosol <- function(
     x_nchr
   }
 
+# 💡 CORREÇÃO 1: Filtrar NA's na coluna de agrupamento (analito) antes de sumarizar
+  ref <- ref[!is.na(ref$analito),] 
+
   ref <- ref |>
     dplyr::group_by(analito, metodo, unidades) |>
-    dplyr::summarise(MDL = min(MDL, na.rm = TRUE), .groups = "drop") |>
+    
+    # 💡 CORREÇÃO 2 (Opcional, mais robusta): Usar coalesce para garantir que Inf vire NA
+    dplyr::summarise(
+      MDL = dplyr::coalesce(min(MDL, na.rm = TRUE), NA_real_),
+      .groups = "drop"
+    ) |>
     dplyr::ungroup()
-  ref$DIG <- count_decimals(ref$MDL)
+    
+  # ref$DIG <- count_decimals(ref$MDL) # Mantido
+  # ref <- ref[!is.na(ref$analito),] # Linha removida/movida (redundante após a correção 1)
   # Lê UCC dos elementos
 
   ucc <- read.csv2(paste0(dir_ucc, ref_ucc), fileEncoding = "latin1")
