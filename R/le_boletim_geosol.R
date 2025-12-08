@@ -46,7 +46,7 @@ le_boletim_quimica_geosol <- function(
   ## Gera o camionho para os arquivos
   ## Entrada
 
-  list_bol <- paste0(dir_bol, list.files(dir_bol, pattern = "*.csv"))
+  list_bol <- paste0(dir_bol, list.files(dir_bol, pattern = "*.XLS|*.xls"))
 
   ## Cria listas com cada informação do boletim
   datalist = list()
@@ -72,8 +72,8 @@ le_boletim_quimica_geosol <- function(
   ## Ler cada boletim do diretório e extrair as informações
   ## DADOS analíticos
   for (i in 1:length(list_bol)) {
-    df_tudo = read.csv2(list_bol[i], fileEncoding = "latin1", header = FALSE)
-
+    df_tudo = readxl::read_excel(list_bol[i], col_names = FALSE)
+    colnames(df_tudo) <- paste0("V", 1:ncol(df_tudo))
     # 2. Defina o valor alvo
     valor_metodo <- "Method"
     valor_status <- "Final Report"

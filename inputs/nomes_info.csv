@@ -92,3 +92,12 @@ Pr;Pr
 Sm;Sm
 Tm;Tm
 FeO;FeO
+Peso_bruto;Peso.bruto
+Peso_inicial;Peso.inicial
+Soma;Soma
++80#;maior.80.mesh
++80#_P;maior.80.mesh
+-80#;menor.80.mesh
+-80#_P;menor.80.mesh
+Pd;Pd
+Pt;Pt

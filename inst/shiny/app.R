@@ -540,66 +540,100 @@ server <- function(input, output, session) {
     do.call(tabsetPanel, c(tabs, id = "dynamic_tables"))
   })
 
-  # 2. ESTATÍSTICAS (Contagem)
-  output$stats_ui <- renderUI({
-    res <- result()
-    if (is.null(res)) {
-      return(p("Execute o processamento para gerar estatísticas."))
-    }
+# 2. ESTATÍSTICAS (Contagem)
+output$stats_ui <- renderUI({
+  res <- result()
+  if (is.null(res)) {
+    return(p("Execute o processamento para gerar estatísticas."))
+  }
 
-    # Assume que a principal tabela de dados é 'dados' ou a primeira
-    main_data <- NULL
-    if ("dados" %in% names(res)) {
-      main_data <- res[["dados"]]
-    } else if (length(res) > 0 && is.data.frame(res[[1]])) {
-      main_data <- res[[1]]
-    }
+  # Assume que a principal tabela de dados é 'dados' ou a primeira
+  main_data <- NULL
+  if ("dados" %in% names(res)) {
+    main_data <- res[["dados"]]
+  } else if (length(res) > 0 && is.data.frame(res[[1]])) {
+    main_data <- res[[1]]
+  }
 
-    if (is.null(main_data)) {
-      return(p(
-        "Dados processados não encontrados ou não estão no formato de tabela."
-      ))
-    }
+  if (is.null(main_data)) {
+    return(p(
+      "Dados processados não encontrados ou não estão no formato de tabela."
+    ))
+  }
 
-    # Tenta calcular estatísticas, assumindo que há uma coluna de ID de boletim
-    if ("Boletim" %in% names(main_data) || "BULLETIN" %in% names(main_data)) {
-      bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))[1]
+  # Colunas de interesse: Boletim (para agrupar) e N_LAB (para identificar amostras únicas)
+  
+  # 1. Identificação da Coluna de Boletim
+  bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))
+  
+  if (length(bol_col) == 0) {
+    return(p(
+      "Coluna 'Boletim' ou 'BULLETIN' não encontrada para calcular estatísticas de contagem."
+    ))
+  }
+  bol_col <- bol_col[1] # Seleciona a coluna de Boletim
+  
+  # 2. Identificação da Coluna de Identificador da Amostra (N_LAB)
+  lab_col <- intersect(c("N_LAB"), names(main_data))
+  
+  if (length(lab_col) == 0) {
+    return(p(
+      "Coluna 'N_LAB' não encontrada para calcular o número de amostras únicas."
+    ))
+  }
+  lab_col <- lab_col[1] # Seleciona a coluna N_LAB
 
-      # Tabela de contagem: Boletim e Número de Amostras
-      if (requireNamespace("dplyr", quietly = TRUE)) {
-        stats_data <- main_data %>%
-          dplyr::group_by(!!rlang::sym(bol_col)) %>%
-          dplyr::summarise(N_Amostras = dplyr::n(), .groups = 'drop')
-      } else {
-        stats_data <- aggregate(
-          x = rep(1, nrow(main_data)),
-          by = list(Boletim = main_data[[bol_col]]),
-          FUN = length
-        )
-        names(stats_data) <- c("Boletim", "N_Amostras")
-      }
+  
+  # 3. Contagem de Amostras Únicas (N_LAB distintos) por Boletim
+  
+  if (requireNamespace("dplyr", quietly = TRUE)) {
+    # 💡 CORREÇÃO APLICADA: Usando dplyr::n_distinct()
+    stats_data <- main_data %>%
+      dplyr::group_by(!!rlang::sym(bol_col)) %>%
+      # Conta o número de valores únicos na coluna N_LAB dentro de cada grupo (Boletim)
+      dplyr::summarise(N_Amostras_Unicas = dplyr::n_distinct(!!rlang::sym(lab_col)), .groups = 'drop') 
+  } else {
+    # Fallback usando aggregate e tapply (mais complexo, mas funciona sem dplyr)
+    count_unique <- tapply(
+      X = main_data[[lab_col]], 
+      INDEX = main_data[[bol_col]], 
+      FUN = function(x) length(unique(x))
+    )
+    stats_data <- data.frame(
+      Boletim = names(count_unique), 
+      N_Amostras_Unicas = as.numeric(count_unique),
+      stringsAsFactors = FALSE
+    )
+    names(stats_data)[1] <- bol_col
+  }
+  
+  
+  # 4. Cálculo dos Totais
+  
+  # Número de Boletins: Número de linhas na tabela stats_data
+  total_boletins <- nrow(stats_data) 
+  
+  # Número Total de Amostras Únicas (sem repetições): Contagem de N_LAB distintos em todo o conjunto de dados
+  total_amostras_unicas <- length(unique(main_data[[lab_col]]))
 
-      output$count_table <- DT::renderDataTable(
-        stats_data,
-        options = list(pageLength = 10),
-        rownames = FALSE
-      )
 
-      return(
-        tagList(
-          DT::dataTableOutput("count_table"),
-          hr(),
-          p(paste("Total de boletins processados:", nrow(stats_data))),
-          p(paste("Total de amostras processadas:", sum(stats_data$N_Amostras)))
-        )
-      )
-    } else {
-      return(p(
-        "Coluna 'Boletim' não encontrada para calcular estatísticas de contagem."
-      ))
-    }
-  })
+  output$count_table <- DT::renderDataTable(
+    stats_data,
+    options = list(pageLength = 10),
+    rownames = FALSE
+  )
 
+  return(
+    tagList(
+      h4("Contagem Detalhada de Amostras Únicas por Boletim"),
+      DT::dataTableOutput("count_table"),
+      hr(),
+      h4("Resumo Estatístico"),
+      p(strong("Total de Boletins Processados:"), total_boletins),
+      p(strong("Total de Amostras Únicas Processadas (N_LAB distintos):"), total_amostras_unicas)
+    )
+  )
+})
   # download handler for zip of all outputs (mantido inalterado)
   observeEvent(
     result(),
