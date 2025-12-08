@@ -349,7 +349,11 @@ if(!is.na(indices_status[1])){
       -Valor_Num_Char, 
       -Valor_Numerico_Convertido
     )
-  
+
+  ## Cria colunas analito e unidade
+  ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
+  df_bruto_pivo <- df_bruto_pivo |>
+    tidyr::separate(analito, c("analito", "unidade", "metodo"), "_", extra = "merge", fill = "right")
 
   ## Volta para a forma inicioal (sem NA)
   dpivo <-
@@ -380,7 +384,7 @@ if(!is.na(indices_status[1])){
     as.data.frame(apply(df_sc_transf, 2, function(x)
       gsub(",", "\\.", x)))
   df_sc_transf <-
-    df_sc_transf |> dplyr::mutate(dplyr::across(5:ncol(df_sc_transf),
+    df_sc_transf |> dplyr::mutate(dplyr::across(7:ncol(df_sc_transf),
                                                 ~ suppressWarnings(as.numeric(.))))
   
   df_sc_05ld <- ltdl.fix.df(df_sc_transf)
@@ -388,7 +392,7 @@ if(!is.na(indices_status[1])){
   ## Pivoteia os dados transformados
   df2 <- df_sc_05ld |>
     tidyr::pivot_longer(
-      cols = 5:ncol(df_sc_05ld),
+      cols = 7:ncol(df_sc_05ld),
       names_to = "analito",
       values_to = "valor"
     )
@@ -396,10 +400,6 @@ if(!is.na(indices_status[1])){
   ## Retira linhas com valor = NA
   df2 <- df2[!is.na(df2$valor), ]
   
-  ## Cria colunas analito e unidade
-  ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
-  df2 <- df2 |>
-    tidyr::separate(analito, c("analito", "unidade"), "_", extra = "merge", fill = "right")
 
   
   ## QAQC  
@@ -426,7 +426,11 @@ if(!is.na(indices_status[1])){
       names_to = "analito",
       values_to = "valor"
     )
-  
+    ## Cria colunas analito e unidade
+  ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
+  QAQC_orig_pivo <- QAQC_orig_pivo |>
+    tidyr::separate(analito, c("analito", "unidade", "metodo"), "_", extra = "merge", fill = "right")
+
   ## Retira valores com NA
   QAQC_orig_pivo <- QAQC_orig_pivo[!is.na(QAQC_orig_pivo$valor), ]
   
@@ -512,7 +516,7 @@ if(!is.na(indices_status[1])){
     as.data.frame(apply(QAQC_transf, 2, function(x)
       gsub(",", "\\.", x)))
   QAQC_transf <-
-    QAQC_transf |> dplyr::mutate(dplyr::across(5:(ncol(QAQC_transf)),
+    QAQC_transf |> dplyr::mutate(dplyr::across(8:(ncol(QAQC_transf)),
                                                 ~ suppressWarnings(as.numeric(.))))
   QAQC_05ld <- ltdl.fix.df(QAQC_transf)
   
