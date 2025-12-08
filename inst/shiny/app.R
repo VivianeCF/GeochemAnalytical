@@ -1,15 +1,18 @@
-## Ensure required packages are installed and loaded
-required_pkgs <- c("shiny")
+## Garantir que os pacotes necessários estejam instalados e carregados
+required_pkgs <- c("shiny", "shinydashboard") # Adicionado shinydashboard
 for (pkg in required_pkgs) {
   if (!requireNamespace(pkg, quietly = TRUE)) {
-    try(install.packages(pkg, repos = "https://cran.rstudio.com"), silent = TRUE)
+    try(
+      install.packages(pkg, repos = "https://cran.rstudio.com"),
+      silent = TRUE
+    )
   }
 }
 suppressPackageStartupMessages({
   lapply(required_pkgs, require, character.only = TRUE)
 })
 
-# allow larger uploads (200 MB)
+# permitir uploads maiores (200 MB)
 options(shiny.maxRequestSize = 200 * 1024^2)
 
 # Simple Shiny app to run le_boletim_acme / le_boletim_geosol
@@ -31,10 +34,23 @@ classes <- c(
   "\u00c1gua"
 )
 
-ui <- fluidPage(
-  titlePanel("Leitor de boletins - ACME / GEOSOL"),
-  sidebarLayout(
-    sidebarPanel(
+# --- Definição da Interface do Usuário (ui) com dashboardPage ---
+
+ui <- dashboardPage(
+  # 1. Cabeçalho (Header)
+  dashboardHeader(title = "Leitor de boletins - ACME / GEOSOL"),
+
+  # 2. Barra Lateral (Sidebar)
+  dashboardSidebar(
+    # Nota: Em shinydashboard, a largura da barra lateral é definida no CSS (padrão 230px),
+    # não diretamente no sidebarPanel como no fluidPage.
+    sidebarMenu(
+      menuItem(
+        "Opções de Leitura",
+        tabName = "leitura_tab",
+        icon = icon("gears")
+      ),
+      # Conteúdo principal da barra lateral
       fileInput(
         "upload",
         "Enviar um arquivo .zip com os boletins (apenas ZIP).",
@@ -53,17 +69,39 @@ ui <- fluidPage(
         choices = classes,
         selected = classes[2]
       ),
-      actionButton("run", "Ler boletins e preparar downloads"),
-      actionButton("reset", "Nova leitura", class = "btn-secondary"),
-      width = 4
-    ),
-    mainPanel(
-      uiOutput("downloads_ui"),
-      hr(),
-      verbatimTextOutput("status")
+      actionButton(
+        "run",
+        "Ler boletins e preparar downloads",
+        class = "btn-primary"
+      ),
+      actionButton("reset", "Nova leitura", class = "btn-secondary")
+    )
+  ),
+
+  # 3. Corpo (Body)
+  dashboardBody(
+    tabItems(
+      tabItem(
+        tabName = "leitura_tab",
+        h2("Status e Downloads"),
+        # Você pode usar 'box' para envolver o conteúdo em um container com estilo de dashboard
+        box(
+          title = "Resultados da Leitura",
+          status = "primary", # Cor do box
+          solidHeader = TRUE, # Título com cor sólida
+          width = 12, # Ocupa toda a largura do dashboardBody
+          uiOutput("downloads_ui"),
+          hr(),
+          verbatimTextOutput("status")
+        )
+      )
     )
   )
 )
+
+# --- Definição do Servidor (server) ---
+# A função server permanece inalterada, pois ela lida com a lógica de back-end
+# e não com o layout visual.
 
 server <- function(input, output, session) {
   result <- reactiveVal(NULL)
@@ -152,24 +190,28 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$run, {
-      # Expect a single ZIP upload; do not accept server-side paths
-      if (is.null(input$upload) || nrow(input$upload) == 0) {
-        status_msg("Nenhum arquivo enviado. Envie um arquivo .zip com os boletins.")
-        result(NULL)
-        return()
-      }
-      up <- input$upload
-      name <- up$name
-      if (!grepl("\\.zip$", name, ignore.case = TRUE)) {
-        status_msg("Arquivo inválido. Envie um arquivo .zip contendo os boletins.")
-        result(NULL)
-        return()
-      }
-      td_up <- tempfile("uploaded_boletins")
-      dir.create(td_up, recursive = TRUE, showWarnings = FALSE)
-      uploaded_temp_dir_path <<- td_up
-      utils::unzip(up$datapath, exdir = td_up)
-      dir_bol <- normalizePath(td_up, winslash = "/", mustWork = FALSE)
+    # Expect a single ZIP upload; do not accept server-side paths
+    if (is.null(input$upload) || nrow(input$upload) == 0) {
+      status_msg(
+        "Nenhum arquivo enviado. Envie um arquivo .zip com os boletins."
+      )
+      result(NULL)
+      return()
+    }
+    up <- input$upload
+    name <- up$name
+    if (!grepl("\\.zip$", name, ignore.case = TRUE)) {
+      status_msg(
+        "Arquivo inválido. Envie um arquivo .zip contendo os boletins."
+      )
+      result(NULL)
+      return()
+    }
+    td_up <- tempfile("uploaded_boletins")
+    dir.create(td_up, recursive = TRUE, showWarnings = FALSE)
+    uploaded_temp_dir_path <<- td_up
+    utils::unzip(up$datapath, exdir = td_up)
+    dir_bol <- normalizePath(td_up, winslash = "/", mustWork = FALSE)
     # ensure directory path ends with a slash to avoid filename concatenation
     if (dir.exists(dir_bol)) {
       dir_bol <- normalizePath(dir_bol, winslash = "/", mustWork = FALSE)
@@ -193,7 +235,7 @@ server <- function(input, output, session) {
     sel_name <- input$classe_am
     idx <- match(sel_name, classes)
     if (is.na(idx)) {
-      idx <- 1  # fallback to first class
+      idx <- 1 # fallback to first class
     }
     classe_use <- idx
 
