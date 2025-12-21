@@ -209,6 +209,29 @@ le_boletim_quimica_geosol <- function(
       "ship",
       "entrega dos resultados"
     )
+
+    library(dplyr)
+
+# Função aprimorada para não gerar avisos e limpar espaços
+limpar_numeros_texto <- function(x) {
+  # Remove espaços em branco extras que podem vir do Excel
+  x <- trimws(x)
+  
+  # suppressWarnings evita a mensagem "NAs introduced by coercion"
+  # Substituímos a vírgula por ponto apenas para o teste numérico
+  num_val <- suppressWarnings(as.numeric(gsub(",", ".", x)))
+  
+  # Se for número, formata. Se não, retorna o texto original x
+  ifelse(!is.na(num_val), 
+         format(round(num_val, 2), decimal.mark = ",", scientific = FALSE, drop0trailing = TRUE), 
+         x)
+}
+
+# 2. Aplicamos às colunas desejadas
+# Substitua 'c(2, 5, 8)' pelos índices ou 'c("Col1", "Col2")' pelos nomes
+  boletim <- boletim |>
+  dplyr::mutate(dplyr::across(paste0(analito, "_", unidades, "_", metodo), ~ limpar_numeros_texto(.))) # Exemplo com colunas 1, 2 e 3
+
     # Adiciona às listas
     datalist[[i]] <- info_boletim
     datalist2[[i]] <- condicoes_analiticas
