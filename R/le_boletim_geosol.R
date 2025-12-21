@@ -223,7 +223,7 @@ limpar_numeros_texto <- function(x) {
   
   # Se for número, formata. Se não, retorna o texto original x
   ifelse(!is.na(num_val), 
-         format(round(num_val, 2), decimal.mark = ",", scientific = FALSE, drop0trailing = TRUE), 
+         format(round(num_val, 3), decimal.mark = ",", scientific = FALSE, drop0trailing = TRUE), 
          x)
 }
 
