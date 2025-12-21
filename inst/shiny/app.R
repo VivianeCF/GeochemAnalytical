@@ -527,7 +527,7 @@ server <- function(input, output, session) {
         output[[output_name]] <- DT::renderDataTable(
           data,
           options = list(pageLength = 10, scrollX = TRUE),
-          server = FALSE # Processamento no cliente
+          server = TRUE # Processamento no cliente
         )
 
         return(tabPanel(
