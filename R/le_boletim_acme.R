@@ -145,7 +145,7 @@ if(!is.na(indices_status[1])){
       "cliente",
       "data do arquivo",
       "Boletim" ,
-      "no. de amostras + branco prep.",
+      "no. de amostras",
       "projeto",
       "ship",
       "entrega dos resultados"
