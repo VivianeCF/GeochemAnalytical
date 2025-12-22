@@ -145,7 +145,7 @@ if(!is.na(indices_status[1])){
       "cliente",
       "data do arquivo",
       "Boletim" ,
-      "no. de amostras",
+      "no. de amostras + branco prep.",
       "projeto",
       "ship",
       "entrega dos resultados"
@@ -572,14 +572,17 @@ limpar_numeros_texto <- function(x) {
   # Lê UCC dos elementos
   
   ucc <- read.csv2(paste0(dir_ucc, ref_ucc), fileEncoding = "latin1")
-  ref$nome_analito <- paste0(ref$analito,"_", ref$unidades)
- 
-  ucc$nome_analito <- paste0(ucc$EL,"_", ucc$UN)
-  
-  ref <- dplyr::left_join(ref, ucc[, c("nome_analito", "UCC")],
-                          by = "nome_analito")
+  ref <- merge(
+  ref, 
+  ucc[, c("EL", "UN", "Nome", "UCC")], 
+  by.x = c("analito", "unidades"), 
+  by.y = c("EL", "UN"), 
+  all.x = FALSE
+)
+    
   ref <- unique(ref)
-  
+  colnames(ref) <- c("EL","UN", "Metodo",  "LDI", "DIG",  "Nome", "UCC")
+
   out[[1]] <- dpivo # dados analíticos brutos
   out[[2]] <- df_sc_05ld # dados analíticos transformados
   out[[3]] <- df_bruto_pivo # dados analíticos brutos pivotados
