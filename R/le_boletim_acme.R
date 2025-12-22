@@ -121,7 +121,7 @@ if(!is.na(indices_status[1])){
     colnames(condicoes_analiticas) <- var.name
     colnames(boletim) <-
       c(
-        "N_LAB",
+        "NUM_LAB",
         "classe_am",
         paste0(analito, "_", unidades, "_", metodo),
         "Boletim",
@@ -221,7 +221,7 @@ if(!is.na(indices_status[1])){
     colnames(condicoes_analiticas) <- var.name
     colnames(boletim) <-
       c(
-        "N_LAB",
+        "NUM_LAB",
         "classe_am",
         paste0(analito, "_", unidades, "_", metodo),
         "Boletim",
@@ -299,15 +299,15 @@ limpar_numeros_texto <- function(x) {
   df_da <- df_da |> dplyr::relocate(Lote, .after = last_col())
   
   # Padroniza nome de laboratório
-  df_da$N_LAB <- gsub("-", "", df_da$N_LAB)
-  df_da$N_LAB <- gsub(" ", "", df_da$N_LAB)
+  df_da$NUM_LAB <- gsub("-", "", df_da$NUM_LAB)
+  df_da$NUM_LAB <- gsub(" ", "", df_da$NUM_LAB)
   
   # Arruma nomes dos analitos e inserir coluna dos métodos
   lista_metodos <-
     unique(ca_da[,c("analito", "metodo")])$metodo# lista dos métodos com artifícios
   
-  ## Retira linhas sem N_LAB
-  df_sc <- df_da[!is.na(df_da$N_LAB),]
+  ## Retira linhas sem NUM_LAB
+  df_sc <- df_da[!is.na(df_da$NUM_LAB),]
   
   ## Substitui valores nulos por NA
   df_sc <- data.frame(lapply(df_sc, function(x) {
@@ -427,7 +427,7 @@ limpar_numeros_texto <- function(x) {
   
   ## QAQC  
   df_bk <-
-    df_q[df_q$classe_am == "BLK" | df_q$N_LAB == "BLK" | df_q$N_LAB == "QUARTZ_GO",]
+    df_q[df_q$classe_am == "BLK" | df_q$NUM_LAB == "BLK" | df_q$NUM_LAB == "QUARTZ_GO",]
 
   
   df_rp <- df_q[df_q$classe_am == "Sediment" | df_q$classe_am == "REP",]
@@ -438,7 +438,7 @@ limpar_numeros_texto <- function(x) {
 
   # colnames(QAQC_orig) <- gsub("xx", "", colnames(QAQC_orig))
   QAQC_orig <- QAQC_orig |> dplyr::relocate(c(Boletim, Lote), .after = classe_am)
-  QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$N_LAB),]
+  QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$NUM_LAB),]
   QAQC_orig$ID <- 1:nrow(QAQC_orig)
   QAQC_orig <- QAQC_orig |> dplyr::relocate(ID)
   

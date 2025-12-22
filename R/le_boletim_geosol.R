@@ -177,15 +177,18 @@ le_boletim_quimica_geosol <- function(
     colnames(condicoes_analiticas) <- var.name
     colnames(boletim) <-
       c(
-        "N_LAB",
+        "NUM_LAB",
         "classe_am",
         paste0(analito, "_", unidades, "_", metodo),
         "Boletim",
         "Lote"
       )
 
-    boletim$N_LAB <- ifelse(stringr::str_detect(boletim$N_LAB, " "),  stringr::word(boletim$N_LAB, 2), boletim$N_LAB )
-    
+    boletim$NUM_LAB <- ifelse(stringr::str_detect(boletim$NUM_LAB, " "),  stringr::word(boletim$NUM_LAB, 2), boletim$NUM_LAB )
+    boletim <- boletim |> dplyr::mutate(
+      classe_am = dplyr::if_else(classe_am == "1", "DUP", classe_am),
+      classe_am = dplyr::if_else(classe_am == "2", "DUP", classe_am)
+)
     # Cria tabela com informações do boletim
     info_boletim <- data.frame(
       status,
@@ -251,15 +254,15 @@ limpar_numeros_texto <- function(x) {
   colnames(ca_da) <- gsub("._", "_", colnames(ca_da), fixed = TRUE)
   colnames(ca_da) <- gsub(".", "_", colnames(ca_da), fixed = TRUE)
   # Padroniza nome de laboratório
-  df_da$N_LAB <- gsub("-", "", df_da$N_LAB)
-  df_da$N_LAB <- gsub(" ", "", df_da$N_LAB)
+  df_da$NUM_LAB <- gsub("-", "", df_da$NUM_LAB)
+  df_da$NUM_LAB <- gsub(" ", "", df_da$NUM_LAB)
 
   # Arruma nomes dos analitos e inserir coluna dos métodos
   lista_metodos <-
     unique(ca_da[, c("analito", "metodo")])$metodo # lista dos métodos com artifícios
 
-  ## Retira linhas sem N_LAB
-  df_sc <- df_da[!is.na(df_da$N_LAB), ]
+  ## Retira linhas sem NUM_LAB
+  df_sc <- df_da[!is.na(df_da$NUM_LAB), ]
   df_sc <- df_sc[df_sc$classe_am != "", ]
   df_sc$classe_am <- gsub("FOSFATO", "ROCHA", df_sc$classe_am, fixed = TRUE)
   ## Substitui valores nulos por NA
@@ -272,7 +275,7 @@ limpar_numeros_texto <- function(x) {
 
   # df_sc$classe_am <- classes[classe_am]
   df_sc <- df_sc |> dplyr::relocate(c(Boletim, Lote), .after = classe_am)
-  df_sc <- df_sc |> dplyr::distinct(N_LAB, classe_am, Boletim, .keep_all = TRUE)
+  df_sc <- df_sc |> dplyr::distinct(NUM_LAB, classe_am, Boletim, .keep_all = TRUE)
   ## Pivoteia os dados analíticos
   df_bruto_pivo <- df_sc |>
     tidyr::pivot_longer(
@@ -335,7 +338,7 @@ limpar_numeros_texto <- function(x) {
     !(df_bruto_pivo$classe_am %in% c("BRANCO_PREP", "REP", "DUP", "STD")),
   ]
   df_bruto_pivo <- df_bruto_pivo[
-    !(df_bruto_pivo$N_LAB %in% c("BRANCO_PREP", "REP", "DUP", "STD")),
+    !(df_bruto_pivo$NUM_LAB %in% c("BRANCO_PREP", "REP", "DUP", "STD")),
   ]
   ## Cria colunas analito e unidade
   ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
@@ -393,18 +396,18 @@ limpar_numeros_texto <- function(x) {
   df_sc$classe_am <- gsub(nome_bol[classe_am], "SMP", df_sc$classe_am)
   ## QAQC
   df_bk <-
-    df_sc[df_sc$N_LAB == "BRANCO_PREP", ]
+    df_sc[df_sc$NUM_LAB == "BRANCO_PREP", ]
 
   df_rp <- df_sc[df_sc$classe_am == "REP" | df_sc$classe_am == "DUP" | df_sc$classe_am == "STD", ]
 
-  df_sd <- df_sc[df_sc$N_LAB == "STD", ]
+  df_sd <- df_sc[df_sc$NUM_LAB == "STD", ]
 
   QAQC_orig <- rbind(df_rp, df_bk, df_sd)
 
   # colnames(QAQC_orig) <- gsub("xx", "", colnames(QAQC_orig))
   QAQC_orig <- QAQC_orig |>
     dplyr::relocate(c(Boletim, Lote), .after = classe_am)
-  QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$N_LAB), ]
+  QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$NUM_LAB), ]
   QAQC_orig$ID <- 1:nrow(QAQC_orig)
   QAQC_orig <- QAQC_orig |> dplyr::relocate(ID)
 

@@ -561,7 +561,7 @@ output$stats_ui <- renderUI({
     ))
   }
 
-  # Colunas de interesse: Boletim (para agrupar) e N_LAB (para identificar amostras únicas)
+  # Colunas de interesse: Boletim (para agrupar) e NUM_LAB (para identificar amostras únicas)
   
   # 1. Identificação da Coluna de Boletim
   bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))
@@ -573,24 +573,24 @@ output$stats_ui <- renderUI({
   }
   bol_col <- bol_col[1] # Seleciona a coluna de Boletim
   
-  # 2. Identificação da Coluna de Identificador da Amostra (N_LAB)
-  lab_col <- intersect(c("N_LAB"), names(main_data))
+  # 2. Identificação da Coluna de Identificador da Amostra (NUM_LAB)
+  lab_col <- intersect(c("NUM_LAB"), names(main_data))
   
   if (length(lab_col) == 0) {
     return(p(
-      "Coluna 'N_LAB' não encontrada para calcular o número de amostras únicas."
+      "Coluna 'NUM_LAB' não encontrada para calcular o número de amostras únicas."
     ))
   }
-  lab_col <- lab_col[1] # Seleciona a coluna N_LAB
+  lab_col <- lab_col[1] # Seleciona a coluna NUM_LAB
 
   
-  # 3. Contagem de Amostras Únicas (N_LAB distintos) por Boletim
+  # 3. Contagem de Amostras Únicas (NUM_LAB distintos) por Boletim
   
   if (requireNamespace("dplyr", quietly = TRUE)) {
     # 💡 CORREÇÃO APLICADA: Usando dplyr::n_distinct()
     stats_data <- main_data %>%
       dplyr::group_by(!!rlang::sym(bol_col)) %>%
-      # Conta o número de valores únicos na coluna N_LAB dentro de cada grupo (Boletim)
+      # Conta o número de valores únicos na coluna NUM_LAB dentro de cada grupo (Boletim)
       dplyr::summarise(N_Amostras_Unicas = dplyr::n_distinct(!!rlang::sym(lab_col)), .groups = 'drop') 
   } else {
     # Fallback usando aggregate e tapply (mais complexo, mas funciona sem dplyr)
@@ -613,7 +613,7 @@ output$stats_ui <- renderUI({
   # Número de Boletins: Número de linhas na tabela stats_data
   total_boletins <- nrow(stats_data) 
   
-  # Número Total de Amostras Únicas (sem repetições): Contagem de N_LAB distintos em todo o conjunto de dados
+  # Número Total de Amostras Únicas (sem repetições): Contagem de NUM_LAB distintos em todo o conjunto de dados
   total_amostras_unicas <- length(unique(main_data[[lab_col]]))
 
 
@@ -630,7 +630,7 @@ output$stats_ui <- renderUI({
       hr(),
       h4("Resumo Estatístico"),
       p(strong("Total de Boletins Processados:"), total_boletins),
-      p(strong("Total de Amostras Únicas Processadas (N_LAB distintos):"), total_amostras_unicas)
+      p(strong("Total de Amostras Únicas Processadas (NUM_LAB distintos):"), total_amostras_unicas)
     )
   )
 })
