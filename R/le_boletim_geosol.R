@@ -204,7 +204,7 @@ le_boletim_quimica_geosol <- function(
       "cliente",
       "data do arquivo",
       "Boletim",
-      "no. de amostras + branco prep.",
+      "no. de amostras",
       "projeto",
       "ship",
       "entrega dos resultados"
