@@ -176,7 +176,7 @@ le_boletim_quimica_geosol <- function(
       c('metodo', 'analito', 'unidades', 'MDL', 'Boletim', "Laborat\u00f3rio")
     colnames(condicoes_analiticas) <- var.name
     boletim <- boletim %>%
-  select(where(~ !all(is.na(.))))
+    dplyr::select(where(~ !all(is.na(.))))
     analito <- analito[!is.na(analito)]
     unidades <- unidades[!is.na(unidades)]
     metodo <- metodo[!is.na(metodo)]
