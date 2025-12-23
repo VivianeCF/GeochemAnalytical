@@ -71,42 +71,37 @@ ui <- dashboardPage(
         tabName = "tab_upload",
         icon = icon("file-upload")
       ),
+      # 2. Configuração de leitura
+      menuItem(
+        "Configurações de leitura",
+        tabName = "tab_leitura",
+        icon = icon("sliders")),
 
-      # 2. Processamento
+      # 3. Processamento
       menuItem(
         "Processamento",
         tabName = "tab_processamento",
-        icon = icon("cogs"),
-        menuSubItem(
-          "Configurações de Leitura",
-          tabName = "sub_leitura",
-          icon = icon("sliders")
-        ),
-        menuSubItem(
-          "Ação e Status",
-          tabName = "sub_status",
-          icon = icon("play")
-        )
-      ),
+        icon = icon("cogs")),
 
-      # 3. Visualização
+
+      # 4. Visualização
       menuItem(
         "Visualização",
         tabName = "tab_visualizacao",
         icon = icon("table")
       ),
 
-      # 4. Estatísticas
+      # 5. Estatísticas
       menuItem(
         "Estatísticas",
         tabName = "tab_estatisticas",
         icon = icon("chart-bar")
       ),
 
-      # 5. Downloads
+      # 6 Downloads
       menuItem("Downloads", tabName = "tab_downloads", icon = icon("download")),
 
-      # 6. Sobre o App
+      # 7. Sobre o App
       menuItem("Sobre o App", tabName = "tab_sobre", icon = icon("info-circle"))
     )
   ),
@@ -155,7 +150,7 @@ ui <- dashboardPage(
 
       # Sub-item: Configurações de Leitura
       tabItem(
-        tabName = "sub_leitura",
+        tabName = "tab_leitura",
         h2("Configurações do Processamento"),
         fluidRow(
           box(
@@ -181,7 +176,7 @@ ui <- dashboardPage(
 
       # Sub-item: Ação e Status
       tabItem(
-        tabName = "sub_status",
+        tabName = "tab_processamento",
         h2("Execução e Status"),
         fluidRow(
           box(
