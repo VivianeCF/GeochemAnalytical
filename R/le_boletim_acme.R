@@ -91,7 +91,6 @@ if(!is.na(indices_status[1])){
     no_amostras <- df_tudo[indices_cliente[1]+3, indices_cliente[2]+1]
     projeto <- df_tudo[indices_cliente[1]+4, indices_cliente[2]+1]
     ship <- df_tudo[indices_cliente[1]+5, indices_cliente[2]+1]
-    lote <- df_tudo[indices_cliente[1]+6, indices_cliente[2]+1]
     recebido <- df_tudo[indices_cliente[1]+7, indices_cliente[2]+1]
     metodo <- t(df_tudo[indices_metodo[1], (indices_metodo[2]+1):n])  
     analito <- t(df_tudo[indices_metodo[1]+1,( indices_metodo[2]+1):n])
@@ -102,9 +101,8 @@ if(!is.na(indices_status[1])){
     boletim <- df_tudo[(indices_amostra[1]+1):r, indices_amostra[2]:n]
     
  
-    lotes <- rep(as.character(lote), nrow(boletim))
     job_boletim <- rep(as.character(n_job), nrow(boletim))
-    boletim <- cbind(boletim, job_boletim, lotes)
+    boletim <- cbind(boletim, job_boletim)
     # Cria tabela das condições analíticas
     LAB <- rep(as.character(laboratorio), length(metodo))
     condicoes_analiticas <-
@@ -124,8 +122,7 @@ if(!is.na(indices_status[1])){
         "NUM_LAB",
         "classe_am",
         paste0(analito, "_", unidades, "_", metodo),
-        "Boletim",
-        "Lote"
+        "Boletim"
       )
     # Cria tabela com informações do boletim
     info_boletim <- data.frame(
@@ -190,7 +187,6 @@ if(!is.na(indices_status[1])){
     no_amostras <- df_tudo[indices_cliente[1]+3, indices_cliente[2]+1]
     projeto <- df_tudo[indices_cliente[1]+4, indices_cliente[2]+1]
     ship <- df_tudo[indices_cliente[1]+5, indices_cliente[2]+1]
-    lote <- df_tudo[indices_cliente[1]+6, indices_cliente[2]+1]
     recebido <- df_tudo[indices_cliente[1]+7, indices_cliente[2]+1]
     
     metodo <- t(df_tudo[indices_metodo[1], (indices_metodo[2]+1):n])
@@ -201,9 +197,8 @@ if(!is.na(indices_status[1])){
     unidades <- gsub("%", "pct", unidades)
     MDL <- t(df_tudo[indices_metodo[1]+3, (indices_metodo[2]+1):n])
     boletim <- df_tudo[(indices_amostra[1]+1):r, indices_amostra[2]:n]
-    lotes <- rep(as.character(lote), nrow(boletim))
     job_boletim <- rep(as.character(n_job), nrow(boletim))
-    boletim <- cbind(boletim, job_boletim, lotes)
+    boletim <- cbind(boletim, job_boletim)
     
     # Cria tabela das condições analíticas
     LAB <- rep(as.character(laboratorio), length(metodo))
@@ -224,8 +219,7 @@ if(!is.na(indices_status[1])){
         "NUM_LAB",
         "classe_am",
         paste0(analito, "_", unidades, "_", metodo),
-        "Boletim",
-        "Lote"
+        "Boletim"
       )
 
     # Cria tabela com informações do boletim
@@ -294,10 +288,9 @@ limpar_numeros_texto <- function(x) {
   
   colnames(df_da) <- gsub("%", "pct", colnames(df_da))
   
-  # Coloca Boletim e lote no final
+  # Coloca Boletim  no final
   df_da <- df_da |> dplyr::relocate(Boletim, .after = last_col())
-  df_da <- df_da |> dplyr::relocate(Lote, .after = last_col())
-  
+    
   # Padroniza nome de laboratório
   df_da$NUM_LAB <- gsub("-", "", df_da$NUM_LAB)
   df_da$NUM_LAB <- gsub(" ", "", df_da$NUM_LAB)
@@ -317,12 +310,12 @@ limpar_numeros_texto <- function(x) {
     gsub("I,N,F,", NA, x, fixed = TRUE)
   }))
   df_sc$classe_am <- classes[classe_am]  
-  df_sc <- df_sc |> dplyr::relocate(c(Boletim, Lote), .after = classe_am)
+  df_sc <- df_sc |> dplyr::relocate(Boletim, .after = classe_am)
  
   ## Pivoteia os dados analíticos
   df_bruto_pivo <- df_sc |>
     tidyr::pivot_longer(
-      cols = 5:(ncol(df_sc)),
+      cols = 4:(ncol(df_sc)),
       names_to = "analito",
       values_to = "valor"
     )
@@ -437,7 +430,7 @@ limpar_numeros_texto <- function(x) {
   QAQC_orig <- rbind(df_rp, df_bk, df_sd)
 
   # colnames(QAQC_orig) <- gsub("xx", "", colnames(QAQC_orig))
-  QAQC_orig <- QAQC_orig |> dplyr::relocate(c(Boletim, Lote), .after = classe_am)
+  QAQC_orig <- QAQC_orig |> dplyr::relocate(Boletim, .after = classe_am)
   QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$NUM_LAB),]
   QAQC_orig$ID <- 1:nrow(QAQC_orig)
   QAQC_orig <- QAQC_orig |> dplyr::relocate(ID)
@@ -445,7 +438,7 @@ limpar_numeros_texto <- function(x) {
   ## Pivoteia os dados analíticos
   QAQC_orig_pivo <- QAQC_orig |>
     tidyr::pivot_longer(
-      cols = 6:(ncol(QAQC_orig)),
+      cols = 5:(ncol(QAQC_orig)),
       names_to = "analito",
       values_to = "valor"
     )

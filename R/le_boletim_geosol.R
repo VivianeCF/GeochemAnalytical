@@ -419,7 +419,7 @@ limpar_numeros_texto <- function(x) {
   ## Pivoteia os dados analíticos
   QAQC_orig_pivo <- QAQC_orig |>
     tidyr::pivot_longer(
-      cols = 6:(ncol(QAQC_orig)),
+      cols = 5:(ncol(QAQC_orig)),
       names_to = "analito",
       values_to = "valor"
     )
