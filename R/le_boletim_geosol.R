@@ -105,7 +105,7 @@ le_boletim_quimica_geosol <- function(
     no_amostras <- df_tudo[indices_cliente[1] + 3, indices_cliente[2] + 1]
     projeto <- df_tudo[indices_cliente[1] + 4, indices_cliente[2] + 1]
     ship <- df_tudo[indices_cliente[1] + 5, indices_cliente[2] + 1]
-    lote <- df_tudo[indices_cliente[1] + 6, indices_cliente[2] + 1]
+   
     recebido <- df_tudo[indices_cliente[1] + 7, indices_cliente[2] + 1]
     metodo <- as.character(t(df_tudo[
       indices_metodo[1],
@@ -163,9 +163,9 @@ le_boletim_quimica_geosol <- function(
 
     # 1. Usando stringr::word()
 
-    lotes <- rep(as.character(lote), nrow(boletim))
+    
     job_boletim <- rep(as.character(n_job), nrow(boletim))
-    boletim <- cbind(boletim, job_boletim, lotes)
+    boletim <- cbind(boletim, job_boletim)
     # Cria tabela das condições analíticas
     LAB <- rep(as.character(laboratorio), length(metodo))
     condicoes_analiticas <-
@@ -175,13 +175,18 @@ le_boletim_quimica_geosol <- function(
     var.name <-
       c('metodo', 'analito', 'unidades', 'MDL', 'Boletim', "Laborat\u00f3rio")
     colnames(condicoes_analiticas) <- var.name
+    boletim <- boletim %>%
+  select(where(~ !all(is.na(.))))
+    analito <- analito[!is.na(analito)]
+    unidades <- unidades[!is.na(unidades)]
+    metodo <- metodo[!is.na(metodo)]
+
     colnames(boletim) <-
       c(
         "NUM_LAB",
         "classe_am",
         paste0(analito, "_", unidades, "_", metodo),
-        "Boletim",
-        "Lote"
+        "Boletim"
       )
 
     boletim$NUM_LAB <- ifelse(stringr::str_detect(boletim$NUM_LAB, " "),  stringr::word(boletim$NUM_LAB, 2), boletim$NUM_LAB )
@@ -248,9 +253,9 @@ limpar_numeros_texto <- function(x) {
 
   colnames(df_da) <- gsub("%", "pct", colnames(df_da))
 
-  # Coloca Boletim e lote no final
+  # Coloca Boletim 
   df_da <- df_da |> dplyr::relocate(Boletim, .after = last_col())
-  df_da <- df_da |> dplyr::relocate(Lote, .after = last_col())
+ 
   colnames(ca_da) <- gsub("._", "_", colnames(ca_da), fixed = TRUE)
   colnames(ca_da) <- gsub(".", "_", colnames(ca_da), fixed = TRUE)
   # Padroniza nome de laboratório
@@ -274,12 +279,12 @@ limpar_numeros_texto <- function(x) {
   }))
 
   # df_sc$classe_am <- classes[classe_am]
-  df_sc <- df_sc |> dplyr::relocate(c(Boletim, Lote), .after = classe_am)
+  df_sc <- df_sc |> dplyr::relocate(c(Boletim), .after = classe_am)
   df_sc <- df_sc |> dplyr::distinct(NUM_LAB, classe_am, Boletim, .keep_all = TRUE)
   ## Pivoteia os dados analíticos
   df_bruto_pivo <- df_sc |>
     tidyr::pivot_longer(
-      cols = 5:(ncol(df_sc)),
+      cols = 4:(ncol(df_sc)),
       names_to = "analito",
       values_to = "valor"
     )
@@ -350,7 +355,7 @@ limpar_numeros_texto <- function(x) {
     tidyr::pivot_wider(
       df_bruto_pivo,
       names_from = "analito",
-      values_from = "valor"
+      values_from = "valor", names_sort = TRUE
     )
   # transformação < para -
   # Substitui dados qualificados
@@ -406,7 +411,7 @@ limpar_numeros_texto <- function(x) {
 
   # colnames(QAQC_orig) <- gsub("xx", "", colnames(QAQC_orig))
   QAQC_orig <- QAQC_orig |>
-    dplyr::relocate(c(Boletim, Lote), .after = classe_am)
+    dplyr::relocate(c(Boletim), .after = classe_am)
   QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$NUM_LAB), ]
   QAQC_orig$ID <- 1:nrow(QAQC_orig)
   QAQC_orig <- QAQC_orig |> dplyr::relocate(ID)
