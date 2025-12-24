@@ -64,91 +64,87 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       id = "tabs",
-
-      # 1. Entrada de Dados
       menuItem(
         "Entrada de Dados",
         tabName = "tab_upload",
         icon = icon("file-upload")
       ),
-      # 2. Configuração de leitura
       menuItem(
         "Configurações de leitura",
         tabName = "tab_leitura",
-        icon = icon("sliders")),
-
-      # 3. Processamento
+        icon = icon("sliders")
+      ),
       menuItem(
         "Processamento",
         tabName = "tab_processamento",
-        icon = icon("cogs")),
-
-
-      # 4. Visualização
+        icon = icon("cogs")
+      ),
       menuItem(
         "Visualização",
         tabName = "tab_visualizacao",
         icon = icon("table")
       ),
-
-      # 5. Estatísticas
       menuItem(
         "Estatísticas",
         tabName = "tab_estatisticas",
         icon = icon("chart-bar")
       ),
-
-      # 6 Downloads
       menuItem("Downloads", tabName = "tab_downloads", icon = icon("download")),
-
-      # 7. Sobre o App
       menuItem("Sobre o App", tabName = "tab_sobre", icon = icon("info-circle"))
     )
   ),
 
   # 3. Corpo (Body)
   dashboardBody(
-        # Adiciona CSS personalizado
     tags$style(HTML(
       "
-    #tab_sobre {
-      margin-bottom: 10px; /* Adiciona margem abaixo de cada parágrafo */
-      line-height: 1.5; /* Aumenta o espaçamento entre linhas */
-      text-align: justify; /* Justifica o texto */
-      font-size: 1.5em;
-    }
-            .logo-image {
-          display: block;
-          margin-left: auto;
-          margin-right: auto;
-        }
-  "
+      #tab_sobre { margin-bottom: 10px; line-height: 1.5; text-align: justify; font-size: 1.5em; }
+      .logo-image { display: block; margin-left: auto; margin-right: auto; }
+    "
     )),
+
     tabItems(
       # --- TAB 1: ENTRADA DE DADOS (UPLOAD) ---
       tabItem(
         tabName = "tab_upload",
-        h2("Upload do Arquivo ZIP"),
-        box(
-          title = "Selecione o Arquivo",
-          status = "info",
-          solidHeader = TRUE,
-          width = 12,
-          fileInput(
-            "upload",
-            "Enviar um arquivo .zip com os boletins (apenas ZIP).",
-            multiple = FALSE,
-            accept = c(".zip")
+        h2("Upload de Arquivos"),
+        fluidRow(
+          # Box 1: Boletins
+          box(
+            title = "Boletins de Análise",
+            status = "info",
+            solidHeader = TRUE,
+            width = 6,
+            fileInput(
+              "upload",
+              "Enviar arquivo .zip com os boletins.",
+              multiple = FALSE,
+              accept = c(".zip")
+            ),
+            p(em("O arquivo deve conter os boletins de análise."))
           ),
-          p(em(
-            "O arquivo ZIP deve conter os boletins de análise no formato adequado."
-          ))
+
+          # Box 2: Dados das OS (Novo item solicitado)
+          box(
+            title = "Dados das OS",
+            status = "primary",
+            solidHeader = TRUE,
+            width = 6,
+            fileInput(
+              "upload_os",
+              "Enviar arquivo .zip com dados das OS.",
+              multiple = FALSE,
+              accept = c(".zip")
+            ),
+            p(em("O arquivo deve conter as informações das Ordens de Serviço."))
+          )
         )
       ),
 
-      # --- TAB 2: PROCESSAMENTO (SUB-ITENS) ---
+      # --- AS DEMAIS TABS CONTINUAM IGUAIS AO SEU CÓDIGO ---
+      # (tab_leitura, tab_processamento, tab_visualizacao, etc.)
 
-      # Sub-item: Configurações de Leitura
+      # Exemplo simplificado da continuação para contexto:
       tabItem(
         tabName = "tab_leitura",
         h2("Configurações do Processamento"),
@@ -245,7 +241,13 @@ ui <- dashboardPage(
       # --- TAB 6: SOBRE O APP (CONTEÚDO ATUALIZADO) ---
       tabItem(
         tabName = "tab_sobre",
-        img(src = "icons/logo.jpg", width = 100, units = "%", alt = "Sua Foto", class = "logo-image"),
+        img(
+          src = "icons/logo.jpg",
+          width = 100,
+          units = "%",
+          alt = "Sua Foto",
+          class = "logo-image"
+        ),
 
         h2("Informações sobre o Aplicativo"),
         fluidRow(
@@ -283,6 +285,7 @@ ui <- dashboardPage(
     )
   )
 )
+
 
 # --- Definição do Servidor (server) ---
 server <- function(input, output, session) {
