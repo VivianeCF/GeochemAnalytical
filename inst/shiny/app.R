@@ -24,6 +24,9 @@ if (file.exists("R/le_boletim_acme.R")) {
 if (file.exists("R/le_boletim_geosol.R")) {
   source("R/le_boletim_geosol.R")
 }
+if (file.exists("R/extrai_dados_os.R")) {
+  source("R/extrai_dados_os.R")
+}
 # Cria um caminho de recurso explícito para a pasta www/
 # O nome 'icons' é o que será usado na URL web
 addResourcePath("icons", "www")
@@ -145,6 +148,7 @@ ui <- dashboardPage(
       # (tab_leitura, tab_processamento, tab_visualizacao, etc.)
 
       # Exemplo simplificado da continuação para contexto:
+      # Sub-item: Configurações de Leitura
       tabItem(
         tabName = "tab_leitura",
         h2("Configurações do Processamento"),
@@ -165,6 +169,18 @@ ui <- dashboardPage(
               "Classe da amostra",
               choices = classes,
               selected = classes[2]
+            ),
+            # --- Novas Entradas de Texto ---
+            hr(), # Linha horizontal para separar visualmente
+            textInput(
+              "projeto_nome",
+              "Nome do Projeto",
+              placeholder = "Ex: Geologia e Recurso Minerais da Folha Eldorado Paulista"
+            ),
+            textInput(
+              "centro_custo",
+              "Centro de Custo",
+              placeholder = "Ex: 4077.500"
             )
           )
         )
@@ -296,10 +312,16 @@ server <- function(input, output, session) {
   last_meta <- reactiveVal(list(classe = NA, lab = NA))
 
   # ensure uploaded temp files are removed when session ends
+# Garante que os arquivos temporários sejam removidos ao fechar a sessão
   session$onSessionEnded(function() {
-    td <- uploaded_temp_dir_path
-    if (!is.null(td) && dir.exists(td)) {
-      try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
+    td_list <- uploaded_temp_dir_path
+    if (!is.null(td_list)) {
+      # Percorre cada caminho no vetor para validar e deletar
+      for (td in td_list) {
+        if (!is.na(td) && dir.exists(td)) {
+          try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
+        }
+      }
     }
   })
 
@@ -376,64 +398,70 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$run, {
-    # Expect a single ZIP upload; do not accept server-side paths
-    if (is.null(input$upload) || nrow(input$upload) == 0) {
+    # --- VALIDAÇÃO INICIAL ---
+    if (is.null(input$upload) || is.null(input$upload_os)) {
       status_msg(
-        "Nenhum arquivo enviado. Envie um arquivo .zip com os boletins."
-      )
-      result(NULL)
-      return()
-    }
-    up <- input$upload
-    name <- up$name
-    if (!grepl("\\.zip$", name, ignore.case = TRUE)) {
-      status_msg(
-        "Arquivo inválido. Envie um arquivo .zip contendo os boletins."
+        "Erro: Você deve enviar tanto o arquivo dos Boletins quanto o das OS."
       )
       result(NULL)
       return()
     }
 
-    # Mover para a aba de status após o clique
-    updateTabItems(session, "tabs", selected = "sub_status")
-
+    # --- PROCESSAMENTO DOS BOLETINS (Seu código original atualizado) ---
     td_up <- tempfile("uploaded_boletins")
     dir.create(td_up, recursive = TRUE, showWarnings = FALSE)
-    uploaded_temp_dir_path <<- td_up
-    utils::unzip(up$datapath, exdir = td_up)
+    utils::unzip(input$upload$datapath, exdir = td_up)
     dir_bol <- normalizePath(td_up, winslash = "/", mustWork = FALSE)
-    # ensure directory path ends with a slash to avoid filename concatenation
-    if (dir.exists(dir_bol)) {
-      dir_bol <- normalizePath(dir_bol, winslash = "/", mustWork = FALSE)
-      if (!grepl("/$", dir_bol)) dir_bol <- paste0(dir_bol, "/")
+    if (!grepl("/$", dir_bol)) {
+      dir_bol <- paste0(dir_bol, "/")
     }
 
-    # choose function
-    if (input$lab == "ACME") {
-      fun_name <- "le_boletim_quimica_acme"
+    # --- PROCESSAMENTO DAS OS (Novo Trecho) ---
+    td_os <- tempfile("uploaded_os")
+    dir.create(td_os, recursive = TRUE, showWarnings = FALSE)
+    utils::unzip(input$upload_os$datapath, exdir = td_os)
+    dir_os_path <- normalizePath(td_os, winslash = "/", mustWork = FALSE)
+    if (!grepl("/$", dir_os_path)) {
+      dir_os_path <- paste0(dir_os_path, "/")
+    }
+
+    # Armazenar caminhos para limpeza posterior no final da sessão
+    uploaded_temp_dir_path <<- c(td_up, td_os)
+
+    # --- ESCOLHA DA FUNÇÃO E PARÂMETROS ---
+    fun_name <- if (input$lab == "ACME") {
+      "le_boletim_quimica_acme"
     } else {
-      fun_name <- "le_boletim_quimica_geosol"
+      "le_boletim_quimica_geosol"
     }
 
-    if (!exists(fun_name)) {
-      status_msg(paste0("Função não encontrada no ambiente: ", fun_name))
-      result(NULL)
-      return()
-    }
-
-    # map selected class name to its index
     sel_name <- input$classe_am
     idx <- match(sel_name, classes)
-    if (is.na(idx)) {
-      idx <- 1 # fallback to first class
-    }
-    classe_use <- idx
+    classe_use <- if (is.na(idx)) 1 else idx
 
-    status_msg("Lendo boletins (isso pode demorar)...")
+    status_msg("Extraindo dados das OS e lendo boletins...")
 
-    # call function safely; write outputs to tempdir to avoid polluting repo
+    # --- EXECUÇÃO ---
     res <- tryCatch(
       {
+        # 1. Primeiro: Extrair dados das OS (usando sua função externa)
+        # Assumindo que a função extrai_dados_os retorna um dataframe ou caminho
+        if (!exists("extrai_dados_os")) {
+          stop(
+            "Função 'extrai_dados_os' não carregada. Verifique se deu source no arquivo .R"
+          )
+        }
+
+        # Executa a extração das OS
+        dados_os_processados <- extrai_dados_os(
+          dir_os = dir_os_path,
+          projeto_nome = input$projeto_nome,
+          centro_custo = input$centro_custo
+        )
+
+        # 2. Segundo: Rodar a função principal dos boletins
+        # Aqui você pode passar 'dados_os_processados' se a função aceitar,
+        # ou apenas seguir o fluxo se elas forem independentes.
         do.call(
           get(fun_name),
           list(
@@ -441,41 +469,33 @@ server <- function(input, output, session) {
             dir_bol = dir_bol,
             dir_ucc = "inputs/ucc/",
             ref_ucc = "ucc.csv",
-            dir_out = tempdir()
+            dir_out = tempdir(),
+            # Se a sua função aceitar os dados da OS como argumento, adicione aqui:
+            dados_os = dados_os_processados
           )
         )
       },
-      error = function(e) {
-        e
-      }
+      error = function(e) e
     )
 
+    # --- TRATAMENTO DE ERRO E RESULTADO ---
     if (inherits(res, "error")) {
-      status_msg(paste0("Erro ao ler boletins: ", res$message))
+      status_msg(paste0("Erro no processamento: ", res$message))
       result(NULL)
-      return()
-    }
+    } else {
+      # Se a função retornar múltiplos objetos, garanta que res seja uma lista nomeada
+      if (is.data.frame(res)) {
+        res <- list(dados = res)
+      }
 
-    # ensure the result is a named list so we can offer downloads
-    if (
-      is.data.frame(res) ||
-        (requireNamespace("tibble", quietly = TRUE) && tibble::is_tibble(res))
-    ) {
-      res <- list(dados = res)
-    }
+      # Se quiser incluir a tabela de OS na visualização final:
+      # res$info_os <- dados_os_processados
 
-    if (is.null(names(res)) || any(names(res) == "")) {
-      names(res) <- paste0("saida_", seq_along(res))
+      result(res)
+      last_meta(list(classe = classe_use, lab = input$lab))
+      status_msg("Processamento concluído com sucesso!")
     }
-
-    result(res)
-    # store metadata for naming (classe used and lab)
-    last_meta(list(classe = classe_use, lab = input$lab))
-    status_msg(
-      "Leitura concluída. Os downloads, tabelas e estatísticas estão disponíveis nas abas laterais."
-    )
   })
-
   # allow starting a new reading: clear previous outputs and reset inputs
   observeEvent(input$reset, {
     result(NULL)
@@ -538,100 +558,103 @@ server <- function(input, output, session) {
     do.call(tabsetPanel, c(tabs, id = "dynamic_tables"))
   })
 
-# 2. ESTATÍSTICAS (Contagem)
-output$stats_ui <- renderUI({
-  res <- result()
-  if (is.null(res)) {
-    return(p("Execute o processamento para gerar estatísticas."))
-  }
+  # 2. ESTATÍSTICAS (Contagem)
+  output$stats_ui <- renderUI({
+    res <- result()
+    if (is.null(res)) {
+      return(p("Execute o processamento para gerar estatísticas."))
+    }
 
-  # Assume que a principal tabela de dados é 'dados' ou a primeira
-  main_data <- NULL
-  if ("dados" %in% names(res)) {
-    main_data <- res[["dados"]]
-  } else if (length(res) > 0 && is.data.frame(res[[1]])) {
-    main_data <- res[[1]]
-  }
+    # Assume que a principal tabela de dados é 'dados' ou a primeira
+    main_data <- NULL
+    if ("dados" %in% names(res)) {
+      main_data <- res[["dados"]]
+    } else if (length(res) > 0 && is.data.frame(res[[1]])) {
+      main_data <- res[[1]]
+    }
 
-  if (is.null(main_data)) {
-    return(p(
-      "Dados processados não encontrados ou não estão no formato de tabela."
-    ))
-  }
+    if (is.null(main_data)) {
+      return(p(
+        "Dados processados não encontrados ou não estão no formato de tabela."
+      ))
+    }
 
-  # Colunas de interesse: Boletim (para agrupar) e NUM_LAB (para identificar amostras únicas)
-  
-  # 1. Identificação da Coluna de Boletim
-  bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))
-  
-  if (length(bol_col) == 0) {
-    return(p(
-      "Coluna 'Boletim' ou 'BULLETIN' não encontrada para calcular estatísticas de contagem."
-    ))
-  }
-  bol_col <- bol_col[1] # Seleciona a coluna de Boletim
-  
-  # 2. Identificação da Coluna de Identificador da Amostra (NUM_LAB)
-  lab_col <- intersect(c("NUM_LAB"), names(main_data))
-  
-  if (length(lab_col) == 0) {
-    return(p(
-      "Coluna 'NUM_LAB' não encontrada para calcular o número de amostras únicas."
-    ))
-  }
-  lab_col <- lab_col[1] # Seleciona a coluna NUM_LAB
+    # Colunas de interesse: Boletim (para agrupar) e NUM_LAB (para identificar amostras únicas)
 
-  
-  # 3. Contagem de Amostras Únicas (NUM_LAB distintos) por Boletim
-  
-  if (requireNamespace("dplyr", quietly = TRUE)) {
-    # 💡 CORREÇÃO APLICADA: Usando dplyr::n_distinct()
-    stats_data <- main_data %>%
-      dplyr::group_by(!!rlang::sym(bol_col)) %>%
-      # Conta o número de valores únicos na coluna NUM_LAB dentro de cada grupo (Boletim)
-      dplyr::summarise(N_Amostras_Unicas = dplyr::n_distinct(!!rlang::sym(lab_col)), .groups = 'drop') 
-  } else {
-    # Fallback usando aggregate e tapply (mais complexo, mas funciona sem dplyr)
-    count_unique <- tapply(
-      X = main_data[[lab_col]], 
-      INDEX = main_data[[bol_col]], 
-      FUN = function(x) length(unique(x))
+    # 1. Identificação da Coluna de Boletim
+    bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))
+
+    if (length(bol_col) == 0) {
+      return(p(
+        "Coluna 'Boletim' ou 'BULLETIN' não encontrada para calcular estatísticas de contagem."
+      ))
+    }
+    bol_col <- bol_col[1] # Seleciona a coluna de Boletim
+
+    # 2. Identificação da Coluna de Identificador da Amostra (NUM_LAB)
+    lab_col <- intersect(c("NUM_LAB"), names(main_data))
+
+    if (length(lab_col) == 0) {
+      return(p(
+        "Coluna 'NUM_LAB' não encontrada para calcular o número de amostras únicas."
+      ))
+    }
+    lab_col <- lab_col[1] # Seleciona a coluna NUM_LAB
+
+    # 3. Contagem de Amostras Únicas (NUM_LAB distintos) por Boletim
+
+    if (requireNamespace("dplyr", quietly = TRUE)) {
+      # 💡 CORREÇÃO APLICADA: Usando dplyr::n_distinct()
+      stats_data <- main_data %>%
+        dplyr::group_by(!!rlang::sym(bol_col)) %>%
+        # Conta o número de valores únicos na coluna NUM_LAB dentro de cada grupo (Boletim)
+        dplyr::summarise(
+          N_Amostras_Unicas = dplyr::n_distinct(!!rlang::sym(lab_col)),
+          .groups = 'drop'
+        )
+    } else {
+      # Fallback usando aggregate e tapply (mais complexo, mas funciona sem dplyr)
+      count_unique <- tapply(
+        X = main_data[[lab_col]],
+        INDEX = main_data[[bol_col]],
+        FUN = function(x) length(unique(x))
+      )
+      stats_data <- data.frame(
+        Boletim = names(count_unique),
+        N_Amostras_Unicas = as.numeric(count_unique),
+        stringsAsFactors = FALSE
+      )
+      names(stats_data)[1] <- bol_col
+    }
+
+    # 4. Cálculo dos Totais
+
+    # Número de Boletins: Número de linhas na tabela stats_data
+    total_boletins <- nrow(stats_data)
+
+    # Número Total de Amostras Únicas (sem repetições): Contagem de NUM_LAB distintos em todo o conjunto de dados
+    total_amostras_unicas <- length(unique(main_data[[lab_col]]))
+
+    output$count_table <- DT::renderDataTable(
+      stats_data,
+      options = list(pageLength = 10),
+      rownames = FALSE
     )
-    stats_data <- data.frame(
-      Boletim = names(count_unique), 
-      N_Amostras_Unicas = as.numeric(count_unique),
-      stringsAsFactors = FALSE
+
+    return(
+      tagList(
+        h4("Contagem Detalhada de Amostras Únicas por Boletim"),
+        DT::dataTableOutput("count_table"),
+        hr(),
+        h4("Resumo Estatístico"),
+        p(strong("Total de Boletins Processados:"), total_boletins),
+        p(
+          strong("Total de Amostras Únicas Processadas (NUM_LAB distintos):"),
+          total_amostras_unicas
+        )
+      )
     )
-    names(stats_data)[1] <- bol_col
-  }
-  
-  
-  # 4. Cálculo dos Totais
-  
-  # Número de Boletins: Número de linhas na tabela stats_data
-  total_boletins <- nrow(stats_data) 
-  
-  # Número Total de Amostras Únicas (sem repetições): Contagem de NUM_LAB distintos em todo o conjunto de dados
-  total_amostras_unicas <- length(unique(main_data[[lab_col]]))
-
-
-  output$count_table <- DT::renderDataTable(
-    stats_data,
-    options = list(pageLength = 10),
-    rownames = FALSE
-  )
-
-  return(
-    tagList(
-      h4("Contagem Detalhada de Amostras Únicas por Boletim"),
-      DT::dataTableOutput("count_table"),
-      hr(),
-      h4("Resumo Estatístico"),
-      p(strong("Total de Boletins Processados:"), total_boletins),
-      p(strong("Total de Amostras Únicas Processadas (NUM_LAB distintos):"), total_amostras_unicas)
-    )
-  )
-})
+  })
   # download handler for zip of all outputs (mantido inalterado)
   observeEvent(
     result(),

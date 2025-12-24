@@ -21,7 +21,8 @@ le_boletim_quimica_geosol <- function(
   dir_bol,
   dir_ucc,
   ref_ucc,
-  dir_out
+  dir_out,
+  dados_os
 ) {
    source("R/ltdl.fix.df.R")
   ## Diretórios de entrada dos dados
@@ -582,7 +583,7 @@ colnames(ref) <- c("EL","UN", "Metodo",  "LDI", "DIG",  "Nome", "UCC")
   out[[6]] <- QAQC_05ld # dados de qaqc transformados
   out[[7]] <- ref # dados de informação do boletim
   out[[8]] <- ib_da # dados da relação boletim e laboratório
-
+  out[[9]] <- dados_os
   write.csv2(
     dpivo,
     paste0(dir_out, "dados_analíticos_brutos.csv"),
@@ -613,6 +614,12 @@ colnames(ref) <- c("EL","UN", "Metodo",  "LDI", "DIG",  "Nome", "UCC")
     fileEncoding = "latin1",
     row.names = FALSE
   )
+    write.csv2(
+    dados_os,
+    paste0(dir_out, "dados_amostras.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
 
   names(out) <- c(
     "dados brutos",
@@ -622,7 +629,8 @@ colnames(ref) <- c("EL","UN", "Metodo",  "LDI", "DIG",  "Nome", "UCC")
     "dados qaqc bruto",
     "dados qaqc transformados",
     "condições de análise",
-    "informações dos boletins"
+    "informações dos boletins",
+    "dados da OS"
   )
 
   return(out)

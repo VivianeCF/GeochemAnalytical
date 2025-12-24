@@ -16,7 +16,7 @@
 #' @export
 #' @examples
 #' # le_boletim_quimica()
-le_boletim_quimica_acme <- function(classe_am, dir_bol, dir_ucc, ref_ucc, dir_out) {
+le_boletim_quimica_acme <- function(classe_am, dir_bol, dir_ucc, ref_ucc, dir_out, dados_os) {
  source("R/ltdl.fix.df.R")
   ## Diretórios de entrada dos dados
   classes <-
@@ -584,7 +584,7 @@ limpar_numeros_texto <- function(x) {
   out[[6]] <- QAQC_05ld # dados de qaqc transformados
   out[[7]] <- ref # dados de informação do boletim
   out[[8]] <- ib_da # dados da relação boletim e laboratório
-
+  out[[9]] <- dados_os
   write.csv2(dpivo, paste0(dir_out, "dados_analíticos_brutos.csv"), fileEncoding = "latin1", row.names = FALSE)
   write.csv2(df_sc_05ld, paste0(dir_out, "dados_analíticos_transformados.csv"), fileEncoding = "latin1", row.names = FALSE)
   write.csv2(QAQC_05ld, paste0(dir_out, "dados_qaqc_transformados.csv"), fileEncoding = "latin1", row.names = FALSE)
@@ -595,6 +595,12 @@ limpar_numeros_texto <- function(x) {
     fileEncoding = "latin1",
     row.names = FALSE
   )  
+    write.csv2(
+    dados_os,
+    paste0(dir_out, "dados_amostras.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
 
   names(out) <- c(
     "dados brutos",
@@ -604,7 +610,8 @@ limpar_numeros_texto <- function(x) {
     "dados qaqc bruto",
     "dados qaqc transformados",
     "condições de análise",
-    "informações dos boletins"
+    "informações dos boletins",
+    "dados da Os"
   )
   
   return(out)
