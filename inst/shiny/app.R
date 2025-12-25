@@ -27,6 +27,9 @@ if (file.exists("R/le_boletim_geosol.R")) {
 if (file.exists("R/extrai_dados_os.R")) {
   source("R/extrai_dados_os.R")
 }
+if (file.exists("R/prepara_dados_geochem.R")) {
+  source("R/prepara_dados_geochem.R")
+}
 # Cria um caminho de recurso explícito para a pasta www/
 # O nome 'icons' é o que será usado na URL web
 addResourcePath("icons", "www")
@@ -181,6 +184,11 @@ ui <- dashboardPage(
               "centro_custo",
               "Centro de Custo",
               placeholder = "Ex: 4077.500"
+            ),
+            textInput(
+              "metodo",
+              "Método",
+              placeholder = "Ex: ICM14B"
             )
           )
         )
@@ -412,9 +420,10 @@ server <- function(input, output, session) {
     main_out <- file.path(tempdir(), paste0("processo_", format(Sys.time(), "%H%M%S")))
     dir_bol_out <- file.path(main_out, "boletins")
     dir_os_out  <- file.path(main_out, "os")
-    
+    dir_geochem_out  <- file.path(main_out, "geochem")
     dir.create(dir_bol_out, recursive = TRUE, showWarnings = FALSE)
     dir.create(dir_os_out, recursive = TRUE, showWarnings = FALSE)
+    dir.create(dir_geochem_out, recursive = TRUE, showWarnings = FALSE)
 
     # --- PROCESSAMENTO DOS BOLETINS (Seu código original atualizado) ---
     td_up <- tempfile("uploaded_boletins")
@@ -451,52 +460,78 @@ server <- function(input, output, session) {
     status_msg("Extraindo dados das OS e lendo boletins...")
 
     # --- EXECUÇÃO ---
-    res <- tryCatch(
-      {
-        # 1. Primeiro: Extrair dados das OS (usando sua função externa)
-        # Assumindo que a função extrai_dados_os retorna um dataframe ou caminho
-        if (!exists("extrai_dados_os")) {
-          stop(
-            "Função 'extrai_dados_os' não carregada. Verifique se deu source no arquivo .R"
-          )
-        }
+res <- tryCatch({
+      # 1. Extrair dados das OS
+      if (!exists("extrai_dados_os")) stop("Função 'extrai_dados_os' não carregada.")
+      
+      dados_os_processados <- extrai_dados_os(
+        dir_os = dir_os_path,
+        dir_out = dir_os_out,
+        projeto_nome = input$projeto_nome,
+        centro_custo = input$centro_custo
+      )
 
-        # Executa a extração das OS
-        dados_os_processados <- extrai_dados_os(
-          dir_os = dir_os_path,
-          dir_out = dir_os_out,
-          projeto_nome = input$projeto_nome,
-          centro_custo = input$centro_custo
+      # 2. Rodar a função principal dos boletins
+      dados_boletins <- do.call(
+        get(fun_name),
+        list(
+          classe_am = classe_use,
+          dir_bol   = dir_bol,
+          dir_ucc   = "inputs/ucc/",
+          ref_ucc   = "ucc.csv",
+          dir_out   = dir_bol_out
         )
+      )
 
-        # 2. Segundo: Rodar a função principal dos boletins
-        # Aqui você pode passar 'dados_os_processados' se a função aceitar,
-        # ou apenas seguir o fluxo se elas forem independentes.
-        dados_boletins <-do.call(
-          get(fun_name),
-          list(
-            classe_am = classe_use,
-            dir_bol = dir_bol,
-            dir_ucc = "inputs/ucc/",
-            ref_ucc = "ucc.csv",
-            dir_out = dir_bol_out
-          )
-        )
-# 3. Montar a lista final para o result()
-      # Verificamos se dados_boletins é um dataframe para não quebrar a UI
-      if (is.data.frame(dados_boletins)) {
-        list(dados = dados_boletins, info_os = dados_os_processados)
-      } else if (is.list(dados_boletins)) {
-        # Se a função já retornar uma lista, apenas anexamos a OS
-        dados_boletins$info_os <- dados_os_processados
-        dados_boletins
-      } else {
-        stop("A função de boletins não retornou um objeto válido (Dataframe ou Lista).")
-      }
-      },
-      error = function(e) e
-    )
+      # 3. Processar Geochem (Nova Função)
+      if (!exists("prepara_dados_geochem")) stop("Função 'prepara_dados_geochem' não carregada.")
+      
+      dados_geochem_processados <- prepara_dados_geochem(
+        dir_out     = dir_geochem_out, 
+        info_os     = dados_os_processados, 
+        ca          = dados_boletins[['condições de análise']], 
+        dados_pivo  = dados_boletins[['dados transformados pivotados']], 
+        metodo_alvo = input$metodo
+      )
 
+      # 4. Montar a lista final para o result()
+      # IMPORTANTE: Mantemos o nome 'dados' para a tabela principal para não quebrar as Estatísticas
+      
+      # --- 3. Montar a lista final para o result() ---
+
+# Inicializamos a lista que será enviada para o result()
+lista_final <- list()
+
+# Parte A: Lidar com os Boletins
+if (is.data.frame(dados_boletins)) {
+  # Se for um dataframe único, chamamos de 'dados' para manter compatibilidade com a aba Estatística
+  lista_final$dados <- dados_boletins
+} else if (is.list(dados_boletins)) {
+  # Se for uma lista (caso da Geosol/Acme que retornam várias tabelas)
+  lista_final <- dados_boletins
+  # Garante que o primeiro item se chame 'dados' para as estatísticas não quebrarem
+  if (length(names(lista_final)) > 0 && names(lista_final)[1] != "dados") {
+    names(lista_final)[1] <- "dados"
+  }
+}
+
+# Parte B: Incorporar a Geochem (Desmembrando a lista 'out' em 4 abas)
+# Usamos c() para concatenar as duas listas. Isso faz com que cada um dos 4 nomes:
+# "amostras e resultados...", "estações...", etc., vire um item da lista_final.
+if (is.list(dados_geochem_processados)) {
+  lista_final <- c(lista_final, dados_geochem_processados)
+} else {
+  lista_final$dados_geochem <- dados_geochem_processados
+}
+
+# Parte C: Adicionar a Info OS
+lista_final$info_os <- dados_os_processados
+
+# Retorno do tryCatch
+lista_final
+    }, error = function(e) {
+      return(e) # Captura o erro para o tratamento de mensagem abaixo
+    })
     # --- TRATAMENTO DE ERRO E RESULTADO ---
     if (inherits(res, "error")) {
       status_msg(paste0("Erro no processamento: ", res$message))
@@ -545,33 +580,26 @@ server <- function(input, output, session) {
   })
 
   # 1. VISUALIZAÇÃO (Tabelas)
-  output$data_tables_ui <- renderUI({
+output$data_tables_ui <- renderUI({
     res <- result()
-    if (is.null(res)) {
-      return(
-        p(
-          "Execute o processamento na aba 'Processamento' para visualizar as tabelas."
-        )
+    if (is.null(res)) return(p("Execute o processamento para visualizar as tabelas."))
+
+    # Filtramos apenas o que é data.frame
+    nomes_tabelas <- names(res)[sapply(res, is.data.frame)]
+    
+    tabs <- lapply(nomes_tabelas, function(nm) {
+      # Higieniza o nome para o ID (remove espaços e acentos)
+      output_name <- paste0("table_", gsub("[^a-zA-Z0-9]", "_", nm))
+      
+      # Renderiza a DataTable dinamicamente
+      output[[output_name]] <- DT::renderDataTable({
+        res[[nm]]
+      }, options = list(pageLength = 10, scrollX = TRUE), server = TRUE)
+
+      tabPanel(
+        title = toupper(nm), # Título da aba em caixa alta para melhor leitura
+        DT::dataTableOutput(output_name)
       )
-    }
-
-    # Cria uma lista de outputs de DataTable
-    tabs <- lapply(names(res), function(nm) {
-      data <- res[[nm]]
-      if (is.data.frame(data)) {
-        # Criar o output de renderização da tabela
-        output_name <- paste0("table_", gsub("[^a-zA-Z0-9]", "_", nm))
-        output[[output_name]] <- DT::renderDataTable(
-          data,
-          options = list(pageLength = 10, scrollX = TRUE),
-          server = TRUE # Processamento no cliente
-        )
-
-        return(tabPanel(
-          title = nm,
-          DT::dataTableOutput(output_name)
-        ))
-      }
     })
 
     do.call(tabsetPanel, c(tabs, id = "dynamic_tables"))

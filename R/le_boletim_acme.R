@@ -658,6 +658,18 @@ if (length(list_bol) == 0) {
     fileEncoding = "latin1",
     row.names = FALSE
   )
+      write.csv2(
+    df_bruto_pivo,
+    file.path(caminho_subpasta, "dados_brutos_pivotados.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
+  write.csv2(
+    df2,
+    file.path(caminho_subpasta, "dados_transformados_pivotados.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
   write.csv2(
     QAQC_05ld,
     file.path(caminho_subpasta, "dados_qaqc_transformados.csv"),
@@ -665,17 +677,17 @@ if (length(list_bol) == 0) {
     row.names = FALSE
   )
   write.csv2(
-    ref,
-    file.path(caminho_subpasta, "informação_boletim.csv"),
-    fileEncoding = "latin1",
-    row.names = FALSE
-  )
-  write.csv2(
     ib_da,
-    file.path(caminho_subpasta, "condições_analíticas.csv"),
+    file.path(caminho_subpasta, "informações_boletins.csv"),
     fileEncoding = "latin1",
     row.names = FALSE
   )
+  # write.csv2(
+  #   refa,
+  #   file.path(caminho_subpasta, "condições_analíticas.csv"),
+  #   fileEncoding = "latin1",
+  #   row.names = FALSE
+  # )
 
 
   names(out) <- c(
