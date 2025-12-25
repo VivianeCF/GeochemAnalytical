@@ -407,26 +407,35 @@ server <- function(input, output, session) {
       return()
     }
 
+    # --- PREPARAÇÃO DE DIRETÓRIOS DE SAÍDA (Resolve o erro de pasta não encontrada) ---
+    # Criamos uma pasta mestre única para esta execução
+    main_out <- file.path(tempdir(), paste0("processo_", format(Sys.time(), "%H%M%S")))
+    dir_bol_out <- file.path(main_out, "boletins")
+    dir_os_out  <- file.path(main_out, "os")
+    
+    dir.create(dir_bol_out, recursive = TRUE, showWarnings = FALSE)
+    dir.create(dir_os_out, recursive = TRUE, showWarnings = FALSE)
+
     # --- PROCESSAMENTO DOS BOLETINS (Seu código original atualizado) ---
     td_up <- tempfile("uploaded_boletins")
     dir.create(td_up, recursive = TRUE, showWarnings = FALSE)
     utils::unzip(input$upload$datapath, exdir = td_up)
     dir_bol <- normalizePath(td_up, winslash = "/", mustWork = FALSE)
-    if (!grepl("/$", dir_bol)) {
-      dir_bol <- paste0(dir_bol, "/")
-    }
+    # if (!grepl("/$", dir_bol)) {
+    #   dir_bol <- paste0(dir_bol, "/")
+    # }
 
     # --- PROCESSAMENTO DAS OS (Novo Trecho) ---
     td_os <- tempfile("uploaded_os")
     dir.create(td_os, recursive = TRUE, showWarnings = FALSE)
     utils::unzip(input$upload_os$datapath, exdir = td_os)
     dir_os_path <- normalizePath(td_os, winslash = "/", mustWork = FALSE)
-    if (!grepl("/$", dir_os_path)) {
-      dir_os_path <- paste0(dir_os_path, "/")
-    }
+    # if (!grepl("/$", dir_os_path)) {
+    #   dir_os_path <- paste0(dir_os_path, "/")
+    # }
 
     # Armazenar caminhos para limpeza posterior no final da sessão
-    uploaded_temp_dir_path <<- c(td_up, td_os)
+    uploaded_temp_dir_path <<- c(td_up, td_os, main_out)
 
     # --- ESCOLHA DA FUNÇÃO E PARÂMETROS ---
     fun_name <- if (input$lab == "ACME") {
@@ -455,6 +464,7 @@ server <- function(input, output, session) {
         # Executa a extração das OS
         dados_os_processados <- extrai_dados_os(
           dir_os = dir_os_path,
+          dir_out = dir_os_out,
           projeto_nome = input$projeto_nome,
           centro_custo = input$centro_custo
         )
@@ -462,18 +472,27 @@ server <- function(input, output, session) {
         # 2. Segundo: Rodar a função principal dos boletins
         # Aqui você pode passar 'dados_os_processados' se a função aceitar,
         # ou apenas seguir o fluxo se elas forem independentes.
-        do.call(
+        dados_boletins <-do.call(
           get(fun_name),
           list(
             classe_am = classe_use,
             dir_bol = dir_bol,
             dir_ucc = "inputs/ucc/",
             ref_ucc = "ucc.csv",
-            dir_out = tempdir(),
-            # Se a sua função aceitar os dados da OS como argumento, adicione aqui:
-            dados_os = dados_os_processados
+            dir_out = dir_bol_out
           )
         )
+# 3. Montar a lista final para o result()
+      # Verificamos se dados_boletins é um dataframe para não quebrar a UI
+      if (is.data.frame(dados_boletins)) {
+        list(dados = dados_boletins, info_os = dados_os_processados)
+      } else if (is.list(dados_boletins)) {
+        # Se a função já retornar uma lista, apenas anexamos a OS
+        dados_boletins$info_os <- dados_os_processados
+        dados_boletins
+      } else {
+        stop("A função de boletins não retornou um objeto válido (Dataframe ou Lista).")
+      }
       },
       error = function(e) e
     )
@@ -656,127 +675,76 @@ server <- function(input, output, session) {
     )
   })
   # download handler for zip of all outputs (mantido inalterado)
-  observeEvent(
-    result(),
-    {
-      res <- result()
-      if (is.null(res)) {
-        return()
-      }
-      # download handler for zip of all outputs
-      output$zip_all <- downloadHandler(
-        filename = function() {
-          meta <- last_meta()
-          # derive human-readable class label when possible
-          classe_label <- "classeNA"
-          if (!is.null(meta$classe) && !is.na(meta$classe)) {
-            clv <- meta$classe
-            if (
-              !is.null(meta$lab) &&
-                toupper(meta$lab) %in% c("GEOSOL", "ACME") &&
-                clv >= 1 &&
-                clv <= length(classes)
-            ) {
-              raw <- classes[as.integer(clv)]
-              # remove accents and convert to ascii-friendly slug
-              slug <- iconv(raw, from = "UTF-8", to = "ASCII//TRANSLIT")
-              slug <- gsub("[^A-Za-z0-9]+", "_", slug)
-              slug <- tolower(gsub("_+", "_", slug))
-              slug <- sub("^_+|_+$", "", slug)
-              classe_label <- slug
-            } else {
-              classe_label <- paste0("classe", clv)
-            }
-          }
-          # include lab slug
-          lab_slug <- "lab"
-          if (!is.null(meta$lab) && !is.na(meta$lab)) {
-            lab_raw <- tolower(as.character(meta$lab))
-            lab_slug <- iconv(lab_raw, from = "UTF-8", to = "ASCII//TRANSLIT")
-            lab_slug <- gsub("[^a-z0-9]+", "_", lab_slug)
-            lab_slug <- sub("^_+|_+$", "", lab_slug)
-          }
-          date_tag <- format(Sys.time(), "%Y%m%d")
-          paste0(
-            "boletins_",
-            classe_label,
-            "_",
-            lab_slug,
-            "_",
-            date_tag,
-            ".zip"
-          )
-        },
-        content = function(zipfile) {
-          enc <- "latin1"
-          td <- tempfile("zip_files")
-          dir.create(td, showWarnings = FALSE)
-          files <- character()
-          for (ii in seq_along(res)) {
-            nm <- names(res)[ii]
-            x <- res[[ii]]
-            if (
-              is.data.frame(x) ||
-                (requireNamespace("tibble", quietly = TRUE) &&
-                  tibble::is_tibble(x))
-            ) {
-              # convert encoding if requested
-              if (identical(enc, "latin1")) {
-                x <- as.data.frame(
-                  lapply(x, function(col) {
-                    if (is.character(col)) {
-                      converted <- iconv(
-                        col,
-                        from = "UTF-8",
-                        to = "latin1",
-                        sub = ""
-                      )
-                      na_idx <- is.na(converted) & !is.na(col)
-                      if (any(na_idx)) {
-                        converted[na_idx] <- iconv(
-                          col[na_idx],
-                          from = "UTF-8",
-                          to = "latin1",
-                          sub = "byte"
-                        )
-                      }
-                      return(converted)
-                    }
-                    col
-                  }),
-                  stringsAsFactors = FALSE
-                )
-              }
-              f <- file.path(td, paste0(gsub("[[:space:]]+", "_", nm), ".csv"))
-              utils::write.csv2(x, f, row.names = FALSE, fileEncoding = enc)
-              files <- c(files, f)
-            } else {
-              # include RDS for non-dataframes
-              f <- file.path(td, paste0(gsub("[[:space:]]+", "_", nm), ".rds"))
-              saveRDS(x, f)
-              files <- c(files, f)
-            }
-          }
+ observeEvent(result(), {
+    res <- result()
+    if (is.null(res)) return()
 
-          # create zip
-          if (requireNamespace("zip", quietly = TRUE)) {
-            zip::zip(zipfile, files, mode = "cherry-pick")
+    # download handler for zip of all outputs
+    output$zip_all <- downloadHandler(
+      filename = function() {
+        meta <- last_meta()
+        # derive human-readable class label
+        classe_label <- "classeNA"
+        if (!is.null(meta$classe) && !is.na(meta$classe)) {
+          clv <- meta$classe
+          if (!is.null(meta$lab) && toupper(meta$lab) %in% c("GEOSOL", "ACME") &&
+              clv >= 1 && clv <= length(classes)) {
+            raw <- classes[as.integer(clv)]
+            slug <- iconv(raw, from = "UTF-8", to = "ASCII//TRANSLIT")
+            slug <- gsub("[^A-Za-z0-9]+", "_", slug)
+            slug <- tolower(gsub("_+", "_", slug))
+            classe_label <- sub("^_+|_+$", "", slug)
           } else {
-            # try utils::zip; use -j to junk paths when available
-            owd <- getwd()
-            on.exit(setwd(owd), add = TRUE)
-            setwd(td)
-            utils::zip(zipfile, files = basename(files), flags = "-j")
+            classe_label <- paste0("classe", clv)
           }
-          # cleanup temporary files used to assemble the zip
-          try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
         }
-      )
+        
+        # include lab slug
+        lab_slug <- "lab"
+        if (!is.null(meta$lab) && !is.na(meta$lab)) {
+          lab_raw <- tolower(as.character(meta$lab))
+          lab_slug <- iconv(lab_raw, from = "UTF-8", to = "ASCII//TRANSLIT")
+          lab_slug <- gsub("[^a-z0-9]+", "_", lab_slug)
+          lab_slug <- sub("^_+|_+$", "", lab_slug)
+        }
+        
+        date_tag <- format(Sys.time(), "%Y%m%d_%H%M")
+        paste0("processamento_", classe_label, "_", lab_slug, "_", date_tag, ".zip")
+      },
+      content = function(zipfile) {
+        # IMPORTANTE: Pegamos a pasta mestre onde os arquivos foram salvos fisicamente
+        # uploaded_temp_dir_path[3] deve ser o seu 'main_out' definido no observeEvent(input$run)
+        main_temp_dir <- uploaded_temp_dir_path[3]
+        
+        if (is.null(main_temp_dir) || !dir.exists(main_temp_dir)) {
+          stop("Erro: Diretório de saída não encontrado.")
+        }
 
-      # individual download handlers removed — only ZIP download is provided
-    },
-    ignoreNULL = TRUE
-  )
+        # Salva o diretório de trabalho atual e garante o retorno ao final
+        old_wd <- getwd()
+        on.exit(setwd(old_wd), add = TRUE)
+        
+        # Entra na pasta mestre para o ZIP não conter caminhos absolutos (ex: C:/Users/...)
+        setwd(main_temp_dir)
+        
+        # Lista todos os arquivos dentro das subpastas boletins/ e os/
+        files_to_zip <- list.files(recursive = TRUE)
+        
+        if (length(files_to_zip) == 0) {
+          # Caso a pasta esteja vazia por algum erro nas funções de extração
+          writeLines("Sem dados processados", "vazio.txt")
+          files_to_zip <- "vazio.txt"
+        }
+
+        # Cria o ZIP mantendo a estrutura de subpastas
+        if (requireNamespace("zip", quietly = TRUE)) {
+          zip::zip(zipfile, files = files_to_zip)
+        } else {
+          utils::zip(zipfile, files = files_to_zip)
+        }
+      }
+    )
+  }, ignoreNULL = TRUE)
 }
 
 shinyApp(ui, server)

@@ -1,11 +1,16 @@
 extrai_dados_os <- function(
   dir_os,
+  dir_out,
   projeto_nome,
   centro_custo){
    ## Gera o camionho para os arquivos
   ## Entrada
+  files_os <- list.files(dir_os, pattern = "\\.xlsx$", full.names = TRUE, recursive = TRUE, 
+  ignore.case = TRUE)
+if (length(files_os) == 0) {
+    stop("Nenhum arquivo .xlsx encontrado na pasta das boletins.")
+  }
 
-  files_os <- paste0(dir_os, list.files(dir_os, pattern = "*.XLSX|*.xlsx"))
   lista_os <- list()
   for (i in 1:length(files_os)) {
     lista_os[[i]] = readxl::read_excel(files_os[i], col_names = TRUE, skip = 11, sheet = 2)
@@ -45,6 +50,17 @@ colnames(dados_amostras)[1:7] <- primeiras_colunas
 
 dados_amostras$NUM_LAB <- gsub("-", "", dados_amostras$NUM_LAB)
 dados_amostras <- dados_amostras |> dplyr::filter(!is.na(NUM_LAB))
+
+  caminho_subpasta <- file.path(dir_out)
+  if (!dir.exists(caminho_subpasta)) {
+    dir.create(caminho_subpasta, recursive = TRUE, showWarnings = FALSE)
+  }
+  write.csv2(
+    dados_amostras,
+    file.path(caminho_subpasta, "dados_os.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
 # dados_amostras <- unique(dados_amostras)
 return(dados_amostras)
 }
