@@ -383,14 +383,14 @@ limpar_numeros_texto <- function(x) {
     }))
   df_sc_transf <-
     df_sc_transf |>
-    dplyr::mutate(dplyr::across(7:ncol(df_sc_transf), ~ suppressWarnings(as.numeric(.))))
+    dplyr::mutate(dplyr::across(6:ncol(df_sc_transf), ~ suppressWarnings(as.numeric(.))))
 
   df_sc_05ld <- ltdl.fix.df(df_sc_transf)
 
   ## Pivoteia os dados transformados
   df2 <- df_sc_05ld |>
     tidyr::pivot_longer(
-      cols = 7:ncol(df_sc_05ld),
+      cols = 6:ncol(df_sc_05ld),
       names_to = "analito",
       values_to = "valor"
     )
@@ -521,7 +521,7 @@ limpar_numeros_texto <- function(x) {
     }))
   QAQC_transf <-
     QAQC_transf |>
-    dplyr::mutate(dplyr::across(8:(ncol(QAQC_transf)), ~ suppressWarnings(as.numeric(.))))
+    dplyr::mutate(dplyr::across(7:(ncol(QAQC_transf)), ~ suppressWarnings(as.numeric(.))))
   QAQC_05ld <- ltdl.fix.df(QAQC_transf)
 
   # Cria tabela com a relação de boletim e laboratório

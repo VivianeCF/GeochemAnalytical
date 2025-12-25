@@ -400,7 +400,7 @@ limpar_numeros_texto <- function(x) {
     as.data.frame(apply(df_sc_transf, 2, function(x)
       gsub(",", "\\.", x)))
   df_sc_transf <-
-    df_sc_transf |> dplyr::mutate(dplyr::across(7:ncol(df_sc_transf),
+    df_sc_transf |> dplyr::mutate(dplyr::across(6:ncol(df_sc_transf),
                                                 ~ suppressWarnings(as.numeric(.))))
   
   df_sc_05ld <- ltdl.fix.df(df_sc_transf)
@@ -532,7 +532,7 @@ limpar_numeros_texto <- function(x) {
     as.data.frame(apply(QAQC_transf, 2, function(x)
       gsub(",", "\\.", x)))
   QAQC_transf <-
-    QAQC_transf |> dplyr::mutate(dplyr::across(8:(ncol(QAQC_transf)),
+    QAQC_transf |> dplyr::mutate(dplyr::across(7:(ncol(QAQC_transf)),
                                                 ~ suppressWarnings(as.numeric(.))))
   QAQC_05ld <- ltdl.fix.df(QAQC_transf)
   
