@@ -26,7 +26,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, metodo_alvo)
     filter(n() > 1) %>%
     ungroup()
   
-  dup_campo$COD <- rep(c("SMP", "COD"), nrow(dup_campo) / 2)
+  dup_campo$COD <- rep(c("SMP", "DUP"), nrow(dup_campo) / 2)
 
   dup_campo <- dup_campo |> dplyr::relocate(COD, .after = NUM_CAMPO)
 
