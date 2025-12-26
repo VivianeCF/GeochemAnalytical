@@ -71,6 +71,7 @@ GeochemAnalytical/
 │   └── le_boletim_geosol.R     # Parser para laboratório GEOSOL
 ├── inputs/
 │   └── ucc/ucc.csv             # Dados de referência UCC
+│   └── nomes_info              # lista de nomes de analitos
 └── README.md
 Estrutura do ZIP de Saída
 O ZIP gerado segue a convenção processamento_<classe>_<lab>_YYYYMMDD.zip e contém:
@@ -79,7 +80,7 @@ O ZIP gerado segue a convenção processamento_<classe>_<lab>_YYYYMMDD.zip e con
 
 📂 os/: Dados extraídos das Ordens de Serviço.
 
-📂 geochem/:
+📂 geochem/: Dados preparados para os app GeochemExplore e GeochemField
 
 amostras e resultados analíticos.csv (Tabela mestre para SIG)
 
