@@ -21,10 +21,11 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, metodo_alvo)
   info_os <- info_os |>
     dplyr::select(LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
   dados <- dplyr::left_join(info_os, dados, by = "NUM_LAB")
-  dup_campo <- dados %>%
-    group_by(LONGITUDE, LATITUDE) %>%
-    filter(n() > 1) %>%
-    ungroup()
+
+  dup_campo <- dados |>
+    dplyr::group_by(LONGITUDE, LATITUDE) |>
+    dplyr::filter(n() > 1) |>
+    dplyr::ungroup()
   
   dup_campo$COD <- rep(c("SMP", "DUP"), nrow(dup_campo) / 2)
 
