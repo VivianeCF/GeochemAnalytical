@@ -23,7 +23,7 @@ le_boletim_quimica_geosol <- function(
   ref_ucc,
   dir_out
 ) {
-   source("R/ltdl.fix.df.R")
+  source("R/ltdl.fix.df.R")
   ## Diretórios de entrada dos dados
   classes <-
     c(
@@ -38,7 +38,7 @@ le_boletim_quimica_geosol <- function(
     c(
       "CONCENTRADO DE BATEIA",
       "SEDIMENTO CORRENTE",
-      "ROCHA",    
+      "ROCHA",
       "SOLO",
       "\u00c1GUA"
     )
@@ -46,8 +46,11 @@ le_boletim_quimica_geosol <- function(
   ## Gera o camionho para os arquivos
   ## Entrada
 
-  list_bol <- paste0(dir_bol, list.files(dir_bol, pattern = "*.XLS|*.xls"))
-
+  list_bol <- list.files(dir_bol, pattern = "\\.xls$", full.names = TRUE, recursive = TRUE, 
+  ignore.case = TRUE)
+if (length(list_bol) == 0) {
+    stop("Nenhum arquivo .xls encontrado na pasta das boletins.")
+  }
   ## Cria listas com cada informação do boletim
   datalist = list()
   datalist2 = list()
@@ -105,7 +108,7 @@ le_boletim_quimica_geosol <- function(
     no_amostras <- df_tudo[indices_cliente[1] + 3, indices_cliente[2] + 1]
     projeto <- df_tudo[indices_cliente[1] + 4, indices_cliente[2] + 1]
     ship <- df_tudo[indices_cliente[1] + 5, indices_cliente[2] + 1]
-   
+
     recebido <- df_tudo[indices_cliente[1] + 7, indices_cliente[2] + 1]
     metodo <- as.character(t(df_tudo[
       indices_metodo[1],
@@ -129,14 +132,16 @@ le_boletim_quimica_geosol <- function(
       (indices_metodo[2] + 1):n
     ]))
     unidades <- gsub("%", "pct", unidades)
-    MDL <- as.character(t(df_tudo[indices_metodo[1] + 3, (indices_metodo[2] + 1):n]))
-    df_tudo$V1 <- gsub( " - (" , " ", df_tudo$V1, fixed = TRUE)
-      df_tudo$V1 <- gsub( ")" , "", df_tudo$V1, fixed = TRUE)
-      df_tudo$V1 <- df_tudo$V1 |> stringr::str_squish()
+    MDL <- as.character(t(df_tudo[
+      indices_metodo[1] + 3,
+      (indices_metodo[2] + 1):n
+    ]))
+    df_tudo$V1 <- gsub(" - (", " ", df_tudo$V1, fixed = TRUE)
+    df_tudo$V1 <- gsub(")", "", df_tudo$V1, fixed = TRUE)
+    df_tudo$V1 <- df_tudo$V1 |> stringr::str_squish()
 
     if ((indices_metodo[2] - indices_amostra[2]) < 2) {
       boletim <- df_tudo[(indices_amostra[1] + 1):r, indices_amostra[2]:n]
-      
     } else {
       df_tudo <- df_tudo |>
         dplyr::mutate(
@@ -150,10 +155,8 @@ le_boletim_quimica_geosol <- function(
             # 3. Se FALSO: Mantém o valor original de V1
             V1
           )
-        ) 
+        )
       # Remove a segunda palavra do valor da coluna V1
-      
-      
 
       boletim <- df_tudo[
         (indices_amostra[1] + 1):r,
@@ -163,7 +166,6 @@ le_boletim_quimica_geosol <- function(
 
     # 1. Usando stringr::word()
 
-    
     job_boletim <- rep(as.character(n_job), nrow(boletim))
     boletim <- cbind(boletim, job_boletim)
     # Cria tabela das condições analíticas
@@ -176,7 +178,7 @@ le_boletim_quimica_geosol <- function(
       c('metodo', 'analito', 'unidades', 'MDL', 'Boletim', "Laborat\u00f3rio")
     colnames(condicoes_analiticas) <- var.name
     boletim <- boletim %>%
-    dplyr::select(where(~ !all(is.na(.))))
+      dplyr::select(where(~ !all(is.na(.))))
     analito <- analito[!is.na(analito)]
     unidades <- unidades[!is.na(unidades)]
     metodo <- metodo[!is.na(metodo)]
@@ -189,11 +191,16 @@ le_boletim_quimica_geosol <- function(
         "Boletim"
       )
 
-    boletim$NUM_LAB <- ifelse(stringr::str_detect(boletim$NUM_LAB, " "),  stringr::word(boletim$NUM_LAB, 2), boletim$NUM_LAB )
-    boletim <- boletim |> dplyr::mutate(
-      classe_am = dplyr::if_else(classe_am == "1", "DUP", classe_am),
-      classe_am = dplyr::if_else(classe_am == "2", "DUP", classe_am)
-)
+    boletim$NUM_LAB <- ifelse(
+      stringr::str_detect(boletim$NUM_LAB, " "),
+      stringr::word(boletim$NUM_LAB, 2),
+      boletim$NUM_LAB
+    )
+    boletim <- boletim |>
+      dplyr::mutate(
+        classe_am = dplyr::if_else(classe_am == "1", "DUP", classe_am),
+        classe_am = dplyr::if_else(classe_am == "2", "DUP", classe_am)
+      )
     # Cria tabela com informações do boletim
     info_boletim <- data.frame(
       status,
@@ -220,25 +227,35 @@ le_boletim_quimica_geosol <- function(
 
     library(dplyr)
 
-# Função aprimorada para não gerar avisos e limpar espaços
-limpar_numeros_texto <- function(x) {
-  # Remove espaços em branco extras que podem vir do Excel
-  x <- trimws(x)
-  
-  # suppressWarnings evita a mensagem "NAs introduced by coercion"
-  # Substituímos a vírgula por ponto apenas para o teste numérico
-  num_val <- suppressWarnings(as.numeric(gsub(",", ".", x)))
-  
-  # Se for número, formata. Se não, retorna o texto original x
-  ifelse(!is.na(num_val), 
-         format(round(num_val, 3), decimal.mark = ",", scientific = FALSE, drop0trailing = TRUE), 
-         x)
-}
+    # Função aprimorada para não gerar avisos e limpar espaços
+    limpar_numeros_texto <- function(x) {
+      # Remove espaços em branco extras que podem vir do Excel
+      x <- trimws(x)
 
-# 2. Aplicamos às colunas desejadas
-# Substitua 'c(2, 5, 8)' pelos índices ou 'c("Col1", "Col2")' pelos nomes
-  boletim <- boletim |>
-  dplyr::mutate(dplyr::across(paste0(analito, "_", unidades, "_", metodo), ~ limpar_numeros_texto(.))) # Exemplo com colunas 1, 2 e 3
+      # suppressWarnings evita a mensagem "NAs introduced by coercion"
+      # Substituímos a vírgula por ponto apenas para o teste numérico
+      num_val <- suppressWarnings(as.numeric(gsub(",", ".", x)))
+
+      # Se for número, formata. Se não, retorna o texto original x
+      ifelse(
+        !is.na(num_val),
+        format(
+          round(num_val, 3),
+          decimal.mark = ",",
+          scientific = FALSE,
+          drop0trailing = TRUE
+        ),
+        x
+      )
+    }
+
+    # 2. Aplicamos às colunas desejadas
+    # Substitua 'c(2, 5, 8)' pelos índices ou 'c("Col1", "Col2")' pelos nomes
+    boletim <- boletim |>
+      dplyr::mutate(dplyr::across(
+        paste0(analito, "_", unidades, "_", metodo),
+        ~ limpar_numeros_texto(.)
+      )) # Exemplo com colunas 1, 2 e 3
 
     # Adiciona às listas
     datalist[[i]] <- info_boletim
@@ -253,9 +270,9 @@ limpar_numeros_texto <- function(x) {
 
   colnames(df_da) <- gsub("%", "pct", colnames(df_da))
 
-  # Coloca Boletim 
+  # Coloca Boletim
   df_da <- df_da |> dplyr::relocate(Boletim, .after = last_col())
- 
+
   colnames(ca_da) <- gsub("._", "_", colnames(ca_da), fixed = TRUE)
   colnames(ca_da) <- gsub(".", "_", colnames(ca_da), fixed = TRUE)
   # Padroniza nome de laboratório
@@ -280,7 +297,8 @@ limpar_numeros_texto <- function(x) {
 
   # df_sc$classe_am <- classes[classe_am]
   df_sc <- df_sc |> dplyr::relocate(c(Boletim), .after = classe_am)
-  df_sc <- df_sc |> dplyr::distinct(NUM_LAB, classe_am, Boletim, .keep_all = TRUE)
+  df_sc <- df_sc |>
+    dplyr::distinct(NUM_LAB, classe_am, Boletim, .keep_all = TRUE)
   ## Pivoteia os dados analíticos
   df_bruto_pivo <- df_sc |>
     tidyr::pivot_longer(
@@ -288,8 +306,8 @@ limpar_numeros_texto <- function(x) {
       names_to = "analito",
       values_to = "valor"
     )
-   df_bruto_pivo$valor <- gsub(" ", "", df_bruto_pivo$valor, fixed = TRUE)
-   df_bruto_pivo$valor <- gsub(".", ",", df_bruto_pivo$valor, fixed = TRUE)
+  df_bruto_pivo$valor <- gsub(" ", "", df_bruto_pivo$valor, fixed = TRUE)
+  df_bruto_pivo$valor <- gsub(".", ",", df_bruto_pivo$valor, fixed = TRUE)
   ## Retira valores com NA
   df_bruto_pivo <- df_bruto_pivo[!is.na(df_bruto_pivo$valor), ]
 
@@ -348,14 +366,21 @@ limpar_numeros_texto <- function(x) {
   ## Cria colunas analito e unidade
   ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
   df_bruto_pivo <- df_bruto_pivo |>
-    tidyr::separate(analito, c("analito", "unidade", "metodo"), "_", extra = "merge", fill = "right")
+    tidyr::separate(
+      analito,
+      c("analito", "unidade", "metodo"),
+      "_",
+      extra = "merge",
+      fill = "right"
+    )
 
   ## Volta para a forma inicioal (sem NA)
   dpivo <-
     tidyr::pivot_wider(
       df_bruto_pivo,
       names_from = "analito",
-      values_from = "valor", names_sort = TRUE
+      values_from = "valor",
+      names_sort = TRUE
     )
   # transformação < para -
   # Substitui dados qualificados
@@ -382,14 +407,17 @@ limpar_numeros_texto <- function(x) {
     }))
   df_sc_transf <-
     df_sc_transf |>
-    dplyr::mutate(dplyr::across(7:ncol(df_sc_transf), ~ suppressWarnings(as.numeric(.))))
+    dplyr::mutate(dplyr::across(
+      6:ncol(df_sc_transf),
+      ~ suppressWarnings(as.numeric(.))
+    ))
 
   df_sc_05ld <- ltdl.fix.df(df_sc_transf)
 
   ## Pivoteia os dados transformados
   df2 <- df_sc_05ld |>
     tidyr::pivot_longer(
-      cols = 7:ncol(df_sc_05ld),
+      cols = 6:ncol(df_sc_05ld),
       names_to = "analito",
       values_to = "valor"
     )
@@ -397,13 +425,16 @@ limpar_numeros_texto <- function(x) {
   ## Retira linhas com valor = NA
   df2 <- df2[!is.na(df2$valor), ]
 
-
   df_sc$classe_am <- gsub(nome_bol[classe_am], "SMP", df_sc$classe_am)
   ## QAQC
   df_bk <-
     df_sc[df_sc$NUM_LAB == "BRANCO_PREP", ]
 
-  df_rp <- df_sc[df_sc$classe_am == "REP" | df_sc$classe_am == "DUP" | df_sc$classe_am == "STD", ]
+  df_rp <- df_sc[
+    df_sc$classe_am == "REP" |
+      df_sc$classe_am == "DUP" |
+      df_sc$classe_am == "STD",
+  ]
 
   df_sd <- df_sc[df_sc$NUM_LAB == "STD", ]
 
@@ -423,10 +454,16 @@ limpar_numeros_texto <- function(x) {
       names_to = "analito",
       values_to = "valor"
     )
-    ## Cria colunas analito e unidade
+  ## Cria colunas analito e unidade
   ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
   QAQC_orig_pivo <- QAQC_orig_pivo |>
-    tidyr::separate(analito, c("analito", "unidade", "metodo"), "_", extra = "merge", fill = "right")
+    tidyr::separate(
+      analito,
+      c("analito", "unidade", "metodo"),
+      "_",
+      extra = "merge",
+      fill = "right"
+    )
 
   ## Retira valores com NA
   QAQC_orig_pivo <- QAQC_orig_pivo[!is.na(QAQC_orig_pivo$valor), ]
@@ -520,7 +557,10 @@ limpar_numeros_texto <- function(x) {
     }))
   QAQC_transf <-
     QAQC_transf |>
-    dplyr::mutate(dplyr::across(8:(ncol(QAQC_transf)), ~ suppressWarnings(as.numeric(.))))
+    dplyr::mutate(dplyr::across(
+      7:(ncol(QAQC_transf)),
+      ~ suppressWarnings(as.numeric(.))
+    ))
   QAQC_05ld <- ltdl.fix.df(QAQC_transf)
 
   # Cria tabela com a relação de boletim e laboratório
@@ -545,35 +585,35 @@ limpar_numeros_texto <- function(x) {
     x_nchr
   }
 
-# 💡 CORREÇÃO 1: Filtrar NA's na coluna de agrupamento (analito) antes de sumarizar
-  ref <- ref[!is.na(ref$analito),] 
+  # 💡 CORREÇÃO 1: Filtrar NA's na coluna de agrupamento (analito) antes de sumarizar
+  ref <- ref[!is.na(ref$analito), ]
 
   ref <- ref |>
     dplyr::group_by(analito, metodo, unidades) |>
-    
+
     # 💡 CORREÇÃO 2 (Opcional, mais robusta): Usar coalesce para garantir que Inf vire NA
     dplyr::summarise(
       MDL = dplyr::coalesce(min(MDL, na.rm = TRUE), NA_real_),
       .groups = "drop"
     ) |>
     dplyr::ungroup()
-    
+
   ref$DIG <- count_decimals(ref$MDL) # Mantido
-  
+
   # ref <- ref[!is.na(ref$analito),] # Linha removida/movida (redundante após a correção 1)
   # Lê UCC dos elementos
 
   ucc <- read.csv2(paste0(dir_ucc, ref_ucc), fileEncoding = "latin1")
-  
-ref <- merge(
-  ref, 
-  ucc[, c("EL", "UN", "Nome", "UCC")], 
-  by.x = c("analito", "unidades"), 
-  by.y = c("EL", "UN"), 
-  all.x = FALSE
-)
+
+  ref <- merge(
+    ref,
+    ucc[, c("EL", "UN", "Nome", "UCC")],
+    by.x = c("analito", "unidades"),
+    by.y = c("EL", "UN"),
+    all.x = FALSE
+  )
   ref <- unique(ref)
-colnames(ref) <- c("EL","UN", "Metodo",  "LDI", "DIG",  "Nome", "UCC")
+  colnames(ref) <- c("EL", "UN", "Metodo", "LDI", "DIG", "Nome", "UCC")
   out[[1]] <- dpivo # dados analíticos brutos
   out[[2]] <- df_sc_05ld # dados analíticos transformados
   out[[3]] <- df_bruto_pivo # dados analíticos brutos pivotados
@@ -583,36 +623,54 @@ colnames(ref) <- c("EL","UN", "Metodo",  "LDI", "DIG",  "Nome", "UCC")
   out[[7]] <- ref # dados de informação do boletim
   out[[8]] <- ib_da # dados da relação boletim e laboratório
 
+  caminho_subpasta <- file.path(dir_out)
+  if (!dir.exists(caminho_subpasta)) {
+    dir.create(caminho_subpasta, recursive = TRUE, showWarnings = FALSE)
+  }
   write.csv2(
     dpivo,
-    paste0(dir_out, "dados_analíticos_brutos.csv"),
+    file.path(caminho_subpasta, "dados_analíticos_brutos.csv"),
     fileEncoding = "latin1",
     row.names = FALSE
   )
   write.csv2(
     df_sc_05ld,
-    paste0(dir_out, "dados_analíticos_transformados.csv"),
+    file.path(caminho_subpasta, "dados_analíticos_transformados.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
+    write.csv2(
+    df_bruto_pivo,
+    file.path(caminho_subpasta, "dados_brutos_pivotados.csv"),
+    fileEncoding = "latin1",
+    row.names = FALSE
+  )
+  write.csv2(
+    df2,
+    file.path(caminho_subpasta, "dados_transformados_pivotados.csv"),
     fileEncoding = "latin1",
     row.names = FALSE
   )
   write.csv2(
     QAQC_05ld,
-    paste0(dir_out, "dados_qaqc_transformados.csv"),
+    file.path(caminho_subpasta, "dados_qaqc_transformados.csv"),
     fileEncoding = "latin1",
     row.names = FALSE
   )
+  # write.csv2(
+  #   ref,
+  #   file.path(caminho_subpasta, "condições_analíticas.csv"),
+  #   fileEncoding = "latin1",
+  #   row.names = FALSE
+  # )
   write.csv2(
     ib_da,
-    paste0(dir_out, "condições_analíticas.csv"),
+    file.path(caminho_subpasta, "informações_boletins.csv"),
     fileEncoding = "latin1",
     row.names = FALSE
   )
-    write.csv2(
-    ref,
-    paste0(dir_out, "informações_boletins.csv"),
-    fileEncoding = "latin1",
-    row.names = FALSE
-  )
+
+
 
   names(out) <- c(
     "dados brutos",
@@ -627,4 +685,3 @@ colnames(ref) <- c("EL","UN", "Metodo",  "LDI", "DIG",  "Nome", "UCC")
 
   return(out)
 }
-

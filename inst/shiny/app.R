@@ -24,6 +24,12 @@ if (file.exists("R/le_boletim_acme.R")) {
 if (file.exists("R/le_boletim_geosol.R")) {
   source("R/le_boletim_geosol.R")
 }
+if (file.exists("R/extrai_dados_os.R")) {
+  source("R/extrai_dados_os.R")
+}
+if (file.exists("R/prepara_dados_geochem.R")) {
+  source("R/prepara_dados_geochem.R")
+}
 # Cria um caminho de recurso explícito para a pasta www/
 # O nome 'icons' é o que será usado na URL web
 addResourcePath("icons", "www")
@@ -64,90 +70,87 @@ ui <- dashboardPage(
   dashboardSidebar(
     sidebarMenu(
       id = "tabs",
-
-      # 1. Entrada de Dados
       menuItem(
         "Entrada de Dados",
         tabName = "tab_upload",
         icon = icon("file-upload")
       ),
-      # 2. Configuração de leitura
       menuItem(
         "Configurações de leitura",
         tabName = "tab_leitura",
-        icon = icon("sliders")),
-
-      # 3. Processamento
+        icon = icon("sliders")
+      ),
       menuItem(
         "Processamento",
         tabName = "tab_processamento",
-        icon = icon("cogs")),
-
-
-      # 4. Visualização
+        icon = icon("cogs")
+      ),
       menuItem(
         "Visualização",
         tabName = "tab_visualizacao",
         icon = icon("table")
       ),
-
-      # 5. Estatísticas
       menuItem(
         "Estatísticas",
         tabName = "tab_estatisticas",
         icon = icon("chart-bar")
       ),
-
-      # 6 Downloads
       menuItem("Downloads", tabName = "tab_downloads", icon = icon("download")),
-
-      # 7. Sobre o App
       menuItem("Sobre o App", tabName = "tab_sobre", icon = icon("info-circle"))
     )
   ),
 
   # 3. Corpo (Body)
   dashboardBody(
-        # Adiciona CSS personalizado
     tags$style(HTML(
       "
-    #tab_sobre {
-      margin-bottom: 10px; /* Adiciona margem abaixo de cada parágrafo */
-      line-height: 1.5; /* Aumenta o espaçamento entre linhas */
-      text-align: justify; /* Justifica o texto */
-      font-size: 1.5em;
-    }
-            .logo-image {
-          display: block;
-          margin-left: auto;
-          margin-right: auto;
-        }
-  "
+      #tab_sobre { margin-bottom: 10px; line-height: 1.5; text-align: justify; font-size: 1.5em; }
+      .logo-image { display: block; margin-left: auto; margin-right: auto; }
+    "
     )),
+
     tabItems(
       # --- TAB 1: ENTRADA DE DADOS (UPLOAD) ---
       tabItem(
         tabName = "tab_upload",
-        h2("Upload do Arquivo ZIP"),
-        box(
-          title = "Selecione o Arquivo",
-          status = "info",
-          solidHeader = TRUE,
-          width = 12,
-          fileInput(
-            "upload",
-            "Enviar um arquivo .zip com os boletins (apenas ZIP).",
-            multiple = FALSE,
-            accept = c(".zip")
+        h2("Upload de Arquivos"),
+        fluidRow(
+          # Box 1: Boletins
+          box(
+            title = "Boletins de Análise",
+            status = "info",
+            solidHeader = TRUE,
+            width = 6,
+            fileInput(
+              "upload",
+              "Enviar arquivo .zip com os boletins.",
+              multiple = FALSE,
+              accept = c(".zip")
+            ),
+            p(em("O arquivo deve conter os boletins de análise."))
           ),
-          p(em(
-            "O arquivo ZIP deve conter os boletins de análise no formato adequado."
-          ))
+
+          # Box 2: Dados das OS (Novo item solicitado)
+          box(
+            title = "Dados das OS",
+            status = "primary",
+            solidHeader = TRUE,
+            width = 6,
+            fileInput(
+              "upload_os",
+              "Enviar arquivo .zip com dados das OS.",
+              multiple = FALSE,
+              accept = c(".zip")
+            ),
+            p(em("O arquivo deve conter as informações das Ordens de Serviço."))
+          )
         )
       ),
 
-      # --- TAB 2: PROCESSAMENTO (SUB-ITENS) ---
+      # --- AS DEMAIS TABS CONTINUAM IGUAIS AO SEU CÓDIGO ---
+      # (tab_leitura, tab_processamento, tab_visualizacao, etc.)
 
+      # Exemplo simplificado da continuação para contexto:
       # Sub-item: Configurações de Leitura
       tabItem(
         tabName = "tab_leitura",
@@ -169,6 +172,23 @@ ui <- dashboardPage(
               "Classe da amostra",
               choices = classes,
               selected = classes[2]
+            ),
+            # --- Novas Entradas de Texto ---
+            hr(), # Linha horizontal para separar visualmente
+            textInput(
+              "projeto_nome",
+              "Nome do Projeto",
+              placeholder = "Ex: Geologia e Recurso Minerais da Folha Eldorado Paulista"
+            ),
+            textInput(
+              "centro_custo",
+              "Centro de Custo",
+              placeholder = "Ex: 4077.500"
+            ),
+            textInput(
+              "metodo",
+              "Método",
+              placeholder = "Ex: ICM14B"
             )
           )
         )
@@ -245,7 +265,13 @@ ui <- dashboardPage(
       # --- TAB 6: SOBRE O APP (CONTEÚDO ATUALIZADO) ---
       tabItem(
         tabName = "tab_sobre",
-        img(src = "icons/logo.jpg", width = 100, units = "%", alt = "Sua Foto", class = "logo-image"),
+        img(
+          src = "icons/logo.jpg",
+          width = 100,
+          units = "%",
+          alt = "Sua Foto",
+          class = "logo-image"
+        ),
 
         h2("Informações sobre o Aplicativo"),
         fluidRow(
@@ -284,6 +310,7 @@ ui <- dashboardPage(
   )
 )
 
+
 # --- Definição do Servidor (server) ---
 server <- function(input, output, session) {
   result <- reactiveVal(NULL)
@@ -293,10 +320,16 @@ server <- function(input, output, session) {
   last_meta <- reactiveVal(list(classe = NA, lab = NA))
 
   # ensure uploaded temp files are removed when session ends
+# Garante que os arquivos temporários sejam removidos ao fechar a sessão
   session$onSessionEnded(function() {
-    td <- uploaded_temp_dir_path
-    if (!is.null(td) && dir.exists(td)) {
-      try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
+    td_list <- uploaded_temp_dir_path
+    if (!is.null(td_list)) {
+      # Percorre cada caminho no vetor para validar e deletar
+      for (td in td_list) {
+        if (!is.na(td) && dir.exists(td)) {
+          try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
+        }
+      }
     }
   })
 
@@ -373,106 +406,150 @@ server <- function(input, output, session) {
   }
 
   observeEvent(input$run, {
-    # Expect a single ZIP upload; do not accept server-side paths
-    if (is.null(input$upload) || nrow(input$upload) == 0) {
+    # --- VALIDAÇÃO INICIAL ---
+    if (is.null(input$upload) || is.null(input$upload_os)) {
       status_msg(
-        "Nenhum arquivo enviado. Envie um arquivo .zip com os boletins."
-      )
-      result(NULL)
-      return()
-    }
-    up <- input$upload
-    name <- up$name
-    if (!grepl("\\.zip$", name, ignore.case = TRUE)) {
-      status_msg(
-        "Arquivo inválido. Envie um arquivo .zip contendo os boletins."
+        "Erro: Você deve enviar tanto o arquivo dos Boletins quanto o das OS."
       )
       result(NULL)
       return()
     }
 
-    # Mover para a aba de status após o clique
-    updateTabItems(session, "tabs", selected = "sub_status")
+    # --- PREPARAÇÃO DE DIRETÓRIOS DE SAÍDA (Resolve o erro de pasta não encontrada) ---
+    # Criamos uma pasta mestre única para esta execução
+    main_out <- file.path(tempdir(), paste0("processo_", format(Sys.time(), "%H%M%S")))
+    dir_bol_out <- file.path(main_out, "boletins")
+    dir_os_out  <- file.path(main_out, "os")
+    dir_geochem_out  <- file.path(main_out, "geochem")
+    dir.create(dir_bol_out, recursive = TRUE, showWarnings = FALSE)
+    dir.create(dir_os_out, recursive = TRUE, showWarnings = FALSE)
+    dir.create(dir_geochem_out, recursive = TRUE, showWarnings = FALSE)
 
+    # --- PROCESSAMENTO DOS BOLETINS (Seu código original atualizado) ---
     td_up <- tempfile("uploaded_boletins")
     dir.create(td_up, recursive = TRUE, showWarnings = FALSE)
-    uploaded_temp_dir_path <<- td_up
-    utils::unzip(up$datapath, exdir = td_up)
+    utils::unzip(input$upload$datapath, exdir = td_up)
     dir_bol <- normalizePath(td_up, winslash = "/", mustWork = FALSE)
-    # ensure directory path ends with a slash to avoid filename concatenation
-    if (dir.exists(dir_bol)) {
-      dir_bol <- normalizePath(dir_bol, winslash = "/", mustWork = FALSE)
-      if (!grepl("/$", dir_bol)) dir_bol <- paste0(dir_bol, "/")
-    }
+    # if (!grepl("/$", dir_bol)) {
+    #   dir_bol <- paste0(dir_bol, "/")
+    # }
 
-    # choose function
-    if (input$lab == "ACME") {
-      fun_name <- "le_boletim_quimica_acme"
+    # --- PROCESSAMENTO DAS OS (Novo Trecho) ---
+    td_os <- tempfile("uploaded_os")
+    dir.create(td_os, recursive = TRUE, showWarnings = FALSE)
+    utils::unzip(input$upload_os$datapath, exdir = td_os)
+    dir_os_path <- normalizePath(td_os, winslash = "/", mustWork = FALSE)
+    # if (!grepl("/$", dir_os_path)) {
+    #   dir_os_path <- paste0(dir_os_path, "/")
+    # }
+
+    # Armazenar caminhos para limpeza posterior no final da sessão
+    uploaded_temp_dir_path <<- c(td_up, td_os, main_out)
+
+    # --- ESCOLHA DA FUNÇÃO E PARÂMETROS ---
+    fun_name <- if (input$lab == "ACME") {
+      "le_boletim_quimica_acme"
     } else {
-      fun_name <- "le_boletim_quimica_geosol"
+      "le_boletim_quimica_geosol"
     }
 
-    if (!exists(fun_name)) {
-      status_msg(paste0("Função não encontrada no ambiente: ", fun_name))
-      result(NULL)
-      return()
-    }
-
-    # map selected class name to its index
     sel_name <- input$classe_am
     idx <- match(sel_name, classes)
-    if (is.na(idx)) {
-      idx <- 1 # fallback to first class
-    }
-    classe_use <- idx
+    classe_use <- if (is.na(idx)) 1 else idx
 
-    status_msg("Lendo boletins (isso pode demorar)...")
+    status_msg("Extraindo dados das OS e lendo boletins...")
 
-    # call function safely; write outputs to tempdir to avoid polluting repo
-    res <- tryCatch(
-      {
-        do.call(
-          get(fun_name),
-          list(
-            classe_am = classe_use,
-            dir_bol = dir_bol,
-            dir_ucc = "inputs/ucc/",
-            ref_ucc = "ucc.csv",
-            dir_out = tempdir()
-          )
+    # --- EXECUÇÃO ---
+res <- tryCatch({
+      # 1. Extrair dados das OS
+      if (!exists("extrai_dados_os")) stop("Função 'extrai_dados_os' não carregada.")
+      
+      dados_os_processados <- extrai_dados_os(
+        dir_os = dir_os_path,
+        dir_out = dir_os_out,
+        projeto_nome = input$projeto_nome,
+        centro_custo = input$centro_custo
+      )
+
+      # 2. Rodar a função principal dos boletins
+      dados_boletins <- do.call(
+        get(fun_name),
+        list(
+          classe_am = classe_use,
+          dir_bol   = dir_bol,
+          dir_ucc   = "inputs/ucc/",
+          ref_ucc   = "ucc.csv",
+          dir_out   = dir_bol_out
         )
-      },
-      error = function(e) {
-        e
-      }
-    )
+      )
 
+      # 3. Processar Geochem (Nova Função)
+      if (!exists("prepara_dados_geochem")) stop("Função 'prepara_dados_geochem' não carregada.")
+      
+      dados_geochem_processados <- prepara_dados_geochem(
+        dir_out     = dir_geochem_out, 
+        info_os     = dados_os_processados, 
+        ca          = dados_boletins[['condições de análise']], 
+        dados_pivo  = dados_boletins[['dados transformados pivotados']], 
+        metodo_alvo = input$metodo
+      )
+
+      # 4. Montar a lista final para o result()
+      # IMPORTANTE: Mantemos o nome 'dados' para a tabela principal para não quebrar as Estatísticas
+      
+      # --- 3. Montar a lista final para o result() ---
+
+# Inicializamos a lista que será enviada para o result()
+lista_final <- list()
+
+# Parte A: Lidar com os Boletins
+if (is.data.frame(dados_boletins)) {
+  # Se for um dataframe único, chamamos de 'dados' para manter compatibilidade com a aba Estatística
+  lista_final$dados <- dados_boletins
+} else if (is.list(dados_boletins)) {
+  # Se for uma lista (caso da Geosol/Acme que retornam várias tabelas)
+  lista_final <- dados_boletins
+  # Garante que o primeiro item se chame 'dados' para as estatísticas não quebrarem
+  if (length(names(lista_final)) > 0 && names(lista_final)[1] != "dados") {
+    names(lista_final)[1] <- "dados"
+  }
+}
+
+# Parte B: Incorporar a Geochem (Desmembrando a lista 'out' em 4 abas)
+# Usamos c() para concatenar as duas listas. Isso faz com que cada um dos 4 nomes:
+# "amostras e resultados...", "estações...", etc., vire um item da lista_final.
+if (is.list(dados_geochem_processados)) {
+  lista_final <- c(lista_final, dados_geochem_processados)
+} else {
+  lista_final$dados_geochem <- dados_geochem_processados
+}
+
+# Parte C: Adicionar a Info OS
+lista_final$info_os <- dados_os_processados
+
+# Retorno do tryCatch
+lista_final
+    }, error = function(e) {
+      return(e) # Captura o erro para o tratamento de mensagem abaixo
+    })
+    # --- TRATAMENTO DE ERRO E RESULTADO ---
     if (inherits(res, "error")) {
-      status_msg(paste0("Erro ao ler boletins: ", res$message))
+      status_msg(paste0("Erro no processamento: ", res$message))
       result(NULL)
-      return()
-    }
+    } else {
+      # Se a função retornar múltiplos objetos, garanta que res seja uma lista nomeada
+      if (is.data.frame(res)) {
+        res <- list(dados = res)
+      }
 
-    # ensure the result is a named list so we can offer downloads
-    if (
-      is.data.frame(res) ||
-        (requireNamespace("tibble", quietly = TRUE) && tibble::is_tibble(res))
-    ) {
-      res <- list(dados = res)
-    }
+      # Se quiser incluir a tabela de OS na visualização final:
+      # res$info_os <- dados_os_processados
 
-    if (is.null(names(res)) || any(names(res) == "")) {
-      names(res) <- paste0("saida_", seq_along(res))
+      result(res)
+      last_meta(list(classe = classe_use, lab = input$lab))
+      status_msg("Processamento concluído com sucesso!")
     }
-
-    result(res)
-    # store metadata for naming (classe used and lab)
-    last_meta(list(classe = classe_use, lab = input$lab))
-    status_msg(
-      "Leitura concluída. Os downloads, tabelas e estatísticas estão disponíveis nas abas laterais."
-    )
   })
-
   # allow starting a new reading: clear previous outputs and reset inputs
   observeEvent(input$reset, {
     result(NULL)
@@ -503,254 +580,199 @@ server <- function(input, output, session) {
   })
 
   # 1. VISUALIZAÇÃO (Tabelas)
-  output$data_tables_ui <- renderUI({
+output$data_tables_ui <- renderUI({
     res <- result()
-    if (is.null(res)) {
-      return(
-        p(
-          "Execute o processamento na aba 'Processamento' para visualizar as tabelas."
-        )
+    if (is.null(res)) return(p("Execute o processamento para visualizar as tabelas."))
+
+    # Filtramos apenas o que é data.frame
+    nomes_tabelas <- names(res)[sapply(res, is.data.frame)]
+    
+    tabs <- lapply(nomes_tabelas, function(nm) {
+      # Higieniza o nome para o ID (remove espaços e acentos)
+      output_name <- paste0("table_", gsub("[^a-zA-Z0-9]", "_", nm))
+      
+      # Renderiza a DataTable dinamicamente
+      output[[output_name]] <- DT::renderDataTable({
+        res[[nm]]
+      }, options = list(pageLength = 10, scrollX = TRUE), server = TRUE)
+
+      tabPanel(
+        title = toupper(nm), # Título da aba em caixa alta para melhor leitura
+        DT::dataTableOutput(output_name)
       )
-    }
-
-    # Cria uma lista de outputs de DataTable
-    tabs <- lapply(names(res), function(nm) {
-      data <- res[[nm]]
-      if (is.data.frame(data)) {
-        # Criar o output de renderização da tabela
-        output_name <- paste0("table_", gsub("[^a-zA-Z0-9]", "_", nm))
-        output[[output_name]] <- DT::renderDataTable(
-          data,
-          options = list(pageLength = 10, scrollX = TRUE),
-          server = TRUE # Processamento no cliente
-        )
-
-        return(tabPanel(
-          title = nm,
-          DT::dataTableOutput(output_name)
-        ))
-      }
     })
 
     do.call(tabsetPanel, c(tabs, id = "dynamic_tables"))
   })
 
-# 2. ESTATÍSTICAS (Contagem)
-output$stats_ui <- renderUI({
-  res <- result()
-  if (is.null(res)) {
-    return(p("Execute o processamento para gerar estatísticas."))
-  }
+  # 2. ESTATÍSTICAS (Contagem)
+  output$stats_ui <- renderUI({
+    res <- result()
+    if (is.null(res)) {
+      return(p("Execute o processamento para gerar estatísticas."))
+    }
 
-  # Assume que a principal tabela de dados é 'dados' ou a primeira
-  main_data <- NULL
-  if ("dados" %in% names(res)) {
-    main_data <- res[["dados"]]
-  } else if (length(res) > 0 && is.data.frame(res[[1]])) {
-    main_data <- res[[1]]
-  }
+    # Assume que a principal tabela de dados é 'dados' ou a primeira
+    main_data <- NULL
+    if ("dados" %in% names(res)) {
+      main_data <- res[["dados"]]
+    } else if (length(res) > 0 && is.data.frame(res[[1]])) {
+      main_data <- res[[1]]
+    }
 
-  if (is.null(main_data)) {
-    return(p(
-      "Dados processados não encontrados ou não estão no formato de tabela."
-    ))
-  }
+    if (is.null(main_data)) {
+      return(p(
+        "Dados processados não encontrados ou não estão no formato de tabela."
+      ))
+    }
 
-  # Colunas de interesse: Boletim (para agrupar) e NUM_LAB (para identificar amostras únicas)
-  
-  # 1. Identificação da Coluna de Boletim
-  bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))
-  
-  if (length(bol_col) == 0) {
-    return(p(
-      "Coluna 'Boletim' ou 'BULLETIN' não encontrada para calcular estatísticas de contagem."
-    ))
-  }
-  bol_col <- bol_col[1] # Seleciona a coluna de Boletim
-  
-  # 2. Identificação da Coluna de Identificador da Amostra (NUM_LAB)
-  lab_col <- intersect(c("NUM_LAB"), names(main_data))
-  
-  if (length(lab_col) == 0) {
-    return(p(
-      "Coluna 'NUM_LAB' não encontrada para calcular o número de amostras únicas."
-    ))
-  }
-  lab_col <- lab_col[1] # Seleciona a coluna NUM_LAB
+    # Colunas de interesse: Boletim (para agrupar) e NUM_LAB (para identificar amostras únicas)
 
-  
-  # 3. Contagem de Amostras Únicas (NUM_LAB distintos) por Boletim
-  
-  if (requireNamespace("dplyr", quietly = TRUE)) {
-    # 💡 CORREÇÃO APLICADA: Usando dplyr::n_distinct()
-    stats_data <- main_data %>%
-      dplyr::group_by(!!rlang::sym(bol_col)) %>%
-      # Conta o número de valores únicos na coluna NUM_LAB dentro de cada grupo (Boletim)
-      dplyr::summarise(N_Amostras_Unicas = dplyr::n_distinct(!!rlang::sym(lab_col)), .groups = 'drop') 
-  } else {
-    # Fallback usando aggregate e tapply (mais complexo, mas funciona sem dplyr)
-    count_unique <- tapply(
-      X = main_data[[lab_col]], 
-      INDEX = main_data[[bol_col]], 
-      FUN = function(x) length(unique(x))
-    )
-    stats_data <- data.frame(
-      Boletim = names(count_unique), 
-      N_Amostras_Unicas = as.numeric(count_unique),
-      stringsAsFactors = FALSE
-    )
-    names(stats_data)[1] <- bol_col
-  }
-  
-  
-  # 4. Cálculo dos Totais
-  
-  # Número de Boletins: Número de linhas na tabela stats_data
-  total_boletins <- nrow(stats_data) 
-  
-  # Número Total de Amostras Únicas (sem repetições): Contagem de NUM_LAB distintos em todo o conjunto de dados
-  total_amostras_unicas <- length(unique(main_data[[lab_col]]))
+    # 1. Identificação da Coluna de Boletim
+    bol_col <- intersect(c("Boletim", "BULLETIN"), names(main_data))
 
+    if (length(bol_col) == 0) {
+      return(p(
+        "Coluna 'Boletim' ou 'BULLETIN' não encontrada para calcular estatísticas de contagem."
+      ))
+    }
+    bol_col <- bol_col[1] # Seleciona a coluna de Boletim
 
-  output$count_table <- DT::renderDataTable(
-    stats_data,
-    options = list(pageLength = 10),
-    rownames = FALSE
-  )
+    # 2. Identificação da Coluna de Identificador da Amostra (NUM_LAB)
+    lab_col <- intersect(c("NUM_LAB"), names(main_data))
 
-  return(
-    tagList(
-      h4("Contagem Detalhada de Amostras Únicas por Boletim"),
-      DT::dataTableOutput("count_table"),
-      hr(),
-      h4("Resumo Estatístico"),
-      p(strong("Total de Boletins Processados:"), total_boletins),
-      p(strong("Total de Amostras Únicas Processadas (NUM_LAB distintos):"), total_amostras_unicas)
-    )
-  )
-})
-  # download handler for zip of all outputs (mantido inalterado)
-  observeEvent(
-    result(),
-    {
-      res <- result()
-      if (is.null(res)) {
-        return()
-      }
-      # download handler for zip of all outputs
-      output$zip_all <- downloadHandler(
-        filename = function() {
-          meta <- last_meta()
-          # derive human-readable class label when possible
-          classe_label <- "classeNA"
-          if (!is.null(meta$classe) && !is.na(meta$classe)) {
-            clv <- meta$classe
-            if (
-              !is.null(meta$lab) &&
-                toupper(meta$lab) %in% c("GEOSOL", "ACME") &&
-                clv >= 1 &&
-                clv <= length(classes)
-            ) {
-              raw <- classes[as.integer(clv)]
-              # remove accents and convert to ascii-friendly slug
-              slug <- iconv(raw, from = "UTF-8", to = "ASCII//TRANSLIT")
-              slug <- gsub("[^A-Za-z0-9]+", "_", slug)
-              slug <- tolower(gsub("_+", "_", slug))
-              slug <- sub("^_+|_+$", "", slug)
-              classe_label <- slug
-            } else {
-              classe_label <- paste0("classe", clv)
-            }
-          }
-          # include lab slug
-          lab_slug <- "lab"
-          if (!is.null(meta$lab) && !is.na(meta$lab)) {
-            lab_raw <- tolower(as.character(meta$lab))
-            lab_slug <- iconv(lab_raw, from = "UTF-8", to = "ASCII//TRANSLIT")
-            lab_slug <- gsub("[^a-z0-9]+", "_", lab_slug)
-            lab_slug <- sub("^_+|_+$", "", lab_slug)
-          }
-          date_tag <- format(Sys.time(), "%Y%m%d")
-          paste0(
-            "boletins_",
-            classe_label,
-            "_",
-            lab_slug,
-            "_",
-            date_tag,
-            ".zip"
-          )
-        },
-        content = function(zipfile) {
-          enc <- "latin1"
-          td <- tempfile("zip_files")
-          dir.create(td, showWarnings = FALSE)
-          files <- character()
-          for (ii in seq_along(res)) {
-            nm <- names(res)[ii]
-            x <- res[[ii]]
-            if (
-              is.data.frame(x) ||
-                (requireNamespace("tibble", quietly = TRUE) &&
-                  tibble::is_tibble(x))
-            ) {
-              # convert encoding if requested
-              if (identical(enc, "latin1")) {
-                x <- as.data.frame(
-                  lapply(x, function(col) {
-                    if (is.character(col)) {
-                      converted <- iconv(
-                        col,
-                        from = "UTF-8",
-                        to = "latin1",
-                        sub = ""
-                      )
-                      na_idx <- is.na(converted) & !is.na(col)
-                      if (any(na_idx)) {
-                        converted[na_idx] <- iconv(
-                          col[na_idx],
-                          from = "UTF-8",
-                          to = "latin1",
-                          sub = "byte"
-                        )
-                      }
-                      return(converted)
-                    }
-                    col
-                  }),
-                  stringsAsFactors = FALSE
-                )
-              }
-              f <- file.path(td, paste0(gsub("[[:space:]]+", "_", nm), ".csv"))
-              utils::write.csv2(x, f, row.names = FALSE, fileEncoding = enc)
-              files <- c(files, f)
-            } else {
-              # include RDS for non-dataframes
-              f <- file.path(td, paste0(gsub("[[:space:]]+", "_", nm), ".rds"))
-              saveRDS(x, f)
-              files <- c(files, f)
-            }
-          }
+    if (length(lab_col) == 0) {
+      return(p(
+        "Coluna 'NUM_LAB' não encontrada para calcular o número de amostras únicas."
+      ))
+    }
+    lab_col <- lab_col[1] # Seleciona a coluna NUM_LAB
 
-          # create zip
-          if (requireNamespace("zip", quietly = TRUE)) {
-            zip::zip(zipfile, files, mode = "cherry-pick")
-          } else {
-            # try utils::zip; use -j to junk paths when available
-            owd <- getwd()
-            on.exit(setwd(owd), add = TRUE)
-            setwd(td)
-            utils::zip(zipfile, files = basename(files), flags = "-j")
-          }
-          # cleanup temporary files used to assemble the zip
-          try(unlink(td, recursive = TRUE, force = TRUE), silent = TRUE)
-        }
+    # 3. Contagem de Amostras Únicas (NUM_LAB distintos) por Boletim
+
+    if (requireNamespace("dplyr", quietly = TRUE)) {
+      # 💡 CORREÇÃO APLICADA: Usando dplyr::n_distinct()
+      stats_data <- main_data %>%
+        dplyr::group_by(!!rlang::sym(bol_col)) %>%
+        # Conta o número de valores únicos na coluna NUM_LAB dentro de cada grupo (Boletim)
+        dplyr::summarise(
+          N_Amostras_Unicas = dplyr::n_distinct(!!rlang::sym(lab_col)),
+          .groups = 'drop'
+        )
+    } else {
+      # Fallback usando aggregate e tapply (mais complexo, mas funciona sem dplyr)
+      count_unique <- tapply(
+        X = main_data[[lab_col]],
+        INDEX = main_data[[bol_col]],
+        FUN = function(x) length(unique(x))
       )
+      stats_data <- data.frame(
+        Boletim = names(count_unique),
+        N_Amostras_Unicas = as.numeric(count_unique),
+        stringsAsFactors = FALSE
+      )
+      names(stats_data)[1] <- bol_col
+    }
 
-      # individual download handlers removed — only ZIP download is provided
-    },
-    ignoreNULL = TRUE
-  )
+    # 4. Cálculo dos Totais
+
+    # Número de Boletins: Número de linhas na tabela stats_data
+    total_boletins <- nrow(stats_data)
+
+    # Número Total de Amostras Únicas (sem repetições): Contagem de NUM_LAB distintos em todo o conjunto de dados
+    total_amostras_unicas <- length(unique(main_data[[lab_col]]))
+
+    output$count_table <- DT::renderDataTable(
+      stats_data,
+      options = list(pageLength = 10),
+      rownames = FALSE
+    )
+
+    return(
+      tagList(
+        h4("Contagem Detalhada de Amostras Únicas por Boletim"),
+        DT::dataTableOutput("count_table"),
+        hr(),
+        h4("Resumo Estatístico"),
+        p(strong("Total de Boletins Processados:"), total_boletins),
+        p(
+          strong("Total de Amostras Únicas Processadas (NUM_LAB distintos):"),
+          total_amostras_unicas
+        )
+      )
+    )
+  })
+  # download handler for zip of all outputs (mantido inalterado)
+ observeEvent(result(), {
+    res <- result()
+    if (is.null(res)) return()
+
+    # download handler for zip of all outputs
+    output$zip_all <- downloadHandler(
+      filename = function() {
+        meta <- last_meta()
+        # derive human-readable class label
+        classe_label <- "classeNA"
+        if (!is.null(meta$classe) && !is.na(meta$classe)) {
+          clv <- meta$classe
+          if (!is.null(meta$lab) && toupper(meta$lab) %in% c("GEOSOL", "ACME") &&
+              clv >= 1 && clv <= length(classes)) {
+            raw <- classes[as.integer(clv)]
+            slug <- iconv(raw, from = "UTF-8", to = "ASCII//TRANSLIT")
+            slug <- gsub("[^A-Za-z0-9]+", "_", slug)
+            slug <- tolower(gsub("_+", "_", slug))
+            classe_label <- sub("^_+|_+$", "", slug)
+          } else {
+            classe_label <- paste0("classe", clv)
+          }
+        }
+        
+        # include lab slug
+        lab_slug <- "lab"
+        if (!is.null(meta$lab) && !is.na(meta$lab)) {
+          lab_raw <- tolower(as.character(meta$lab))
+          lab_slug <- iconv(lab_raw, from = "UTF-8", to = "ASCII//TRANSLIT")
+          lab_slug <- gsub("[^a-z0-9]+", "_", lab_slug)
+          lab_slug <- sub("^_+|_+$", "", lab_slug)
+        }
+        
+        date_tag <- format(Sys.time(), "%Y%m%d_%H%M")
+        paste0("processamento_", classe_label, "_", lab_slug, "_", date_tag, ".zip")
+      },
+      content = function(zipfile) {
+        # IMPORTANTE: Pegamos a pasta mestre onde os arquivos foram salvos fisicamente
+        # uploaded_temp_dir_path[3] deve ser o seu 'main_out' definido no observeEvent(input$run)
+        main_temp_dir <- uploaded_temp_dir_path[3]
+        
+        if (is.null(main_temp_dir) || !dir.exists(main_temp_dir)) {
+          stop("Erro: Diretório de saída não encontrado.")
+        }
+
+        # Salva o diretório de trabalho atual e garante o retorno ao final
+        old_wd <- getwd()
+        on.exit(setwd(old_wd), add = TRUE)
+        
+        # Entra na pasta mestre para o ZIP não conter caminhos absolutos (ex: C:/Users/...)
+        setwd(main_temp_dir)
+        
+        # Lista todos os arquivos dentro das subpastas boletins/ e os/
+        files_to_zip <- list.files(recursive = TRUE)
+        
+        if (length(files_to_zip) == 0) {
+          # Caso a pasta esteja vazia por algum erro nas funções de extração
+          writeLines("Sem dados processados", "vazio.txt")
+          files_to_zip <- "vazio.txt"
+        }
+
+        # Cria o ZIP mantendo a estrutura de subpastas
+        if (requireNamespace("zip", quietly = TRUE)) {
+          zip::zip(zipfile, files = files_to_zip)
+        } else {
+          utils::zip(zipfile, files = files_to_zip)
+        }
+      }
+    )
+  }, ignoreNULL = TRUE)
 }
 
 shinyApp(ui, server)

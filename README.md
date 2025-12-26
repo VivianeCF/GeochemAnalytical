@@ -1,86 +1,90 @@
-# GeochemAnalytical
+# GeochemAnalytical 💎
 
-App Shiny interativo para leitura e processamento de boletins geoquímicos dos laboratórios ACME e GEOSOL.
+App Shiny interativo para leitura, integração e processamento avançado de boletins geoquímicos dos laboratórios ACME e GEOSOL.
 
-## Características
+## 🚀 Novidades da Versão 2.0
+- **Processamento via Upload**: Interface baseada em arquivos ZIP, eliminando a necessidade de caminhos locais.
+- **Integração com OS**: Extração automática de metadados de Ordens de Serviço (arquivos `.xlsx`).
+- **Módulo Geochem**: Geração de tabelas estruturadas prontas para SIG (amostras, estações e duplicatas).
+- **Estrutura de Saída Organizada**: Exportação em ZIP contendo subpastas lógicas (`boletins/`, `os/`, `geochem/`).
 
-- **Seleção de diretório**: Interface GUI para selecionar pasta contendo boletins
-- **Suporte multi-laboratório**: ACME e GEOSOL
-- **Classes de amostras**: Concentrado de bateia, Sedimento de corrente, Rocha, Solo, Água
-- **Download em ZIP**: Exporta todos os CSVs processados em um arquivo comprimido
-- **Formato português**: Saídas em CSV com separador `;` e decimal `,` (write.csv2)
-- **Encoding**: Suporte a caracteres especiais com encoding latin1
+## 🛠️ Características
 
-## Requisitos
+- **Suporte Multi-Laboratório**: Parsers específicos para ACME e GEOSOL.
+- **Classes de Amostras**: Suporte para Concentrado de Bateia, Sedimento de Corrente, Rocha, Solo e Água.
+- **Visualização em Tempo Real**: Abas interativas para conferência de dados (DT) antes do download.
+- **Estatística Automática**: Resumo de contagem de amostras únicas por boletim.
+- **Padrão de Saída**: CSVs formatados para Excel (separador `;`, decimal `,`) e encoding `latin1`.
 
-- R 4.0+
-- Pacotes R:
-  - `shiny`
-  - `shinyFiles`
+## 📦 Requisitos
 
-### Instalação de dependências
+- **R 4.0+**
+- **Pacotes R**: `shiny`, `shinydashboard`, `DT`, `readxl`, `dplyr`, `zip`.
 
+### Instalação rápida:
 ```r
-install.packages(c("shiny", "shinyFiles"))
-```
+install.packages(c("shiny", "shinydashboard", "DT", "readxl", "dplyr", "zip"))
+🖥️ Como Usar
+Execute o arquivo app.R no RStudio.
 
-## Uso
+Na aba Upload e Parâmetros:
 
-1. Abra o R ou RStudio
-2. Navegue até o diretório do projeto
-3. Execute:
+Envie o arquivo ZIP com os Boletins.
 
-```r
-shiny::runApp("app.R")
-```
+Envie o arquivo ZIP com as Ordens de Serviço.
 
-4. No navegador que abrir:
-   - Clique em "Escolher diretório..." e selecione a pasta com os boletins
-   - Escolha o laboratório (ACME ou GEOSOL)
-   - Selecione a classe da amostra
-   - Clique em "Ler boletins e preparar downloads"
-   - Baixe o arquivo ZIP com os CSVs processados
+Preencha o Nome do Projeto, Centro de Custo e o Método Analítico.
 
-## Estrutura do Projeto
+Clique em "Executar Processamento".
 
-```
+Navegue pelas abas Visualização e Estatística para validar os dados.
+
+Clique em "Baixar todos (.zip)" para obter os resultados estruturados.
+
+📂 Estrutura do Projeto
+Plaintext
+
 GeochemAnalytical/
-├── app.R                          # Aplicação Shiny principal
+├── app.R                       # Código principal (UI e Server)
+├── extrai_dados_os.R           # Script de processamento das OS
+├── prepara_dados_geochem.R     # Script de integração e tabelas SIG
 ├── R/
-│   ├── le_boletim_acme.R         # Função para ler boletins ACME
-│   └── le_boletim_geosol.R       # Função para ler boletins GEOSOL
+│   ├── le_boletim_acme.R       # Lógica do laboratório ACME
+│   └── le_boletim_geosol.R     # Lógica do laboratório GEOSOL
 ├── inputs/
-│   ├── nomes_info.csv            # Informações de nomes
-│   ├── ucc/ucc.csv               # Dados de referência UCC
-│   └── boletins_raw/             # Boletins originais (não versionado)
-├── outputs/                       # Saídas processadas (não versionado)
-├── .gitignore
-└── README.md
-```
+│   └── ucc/ucc.csv             # Referência de valores UCC
+│   └── nomes_info.csv          # Biblioteca dos nomes dos analitos
+└── README.md                   # Documentação do projeto
 
-## Saídas
+📊 Estrutura do Arquivo de Saída
+O aplicativo gera um ZIP organizado com a seguinte hierarquia:
 
-O aplicativo gera um ZIP com os seguintes arquivos:
+Plaintext
 
-- `dados_analíticos_brutos.csv` - Dados brutos sem processamento
-- `dados_analíticos_transformados.csv` - Dados após transformações
-- `dados_qaqc_transformados.csv` - Dados de QA/QC processados
-- `informação_boletim.csv` - Metadados dos boletins
+processamento_YYYYMMDD.zip/
+├── 📂 boletins/
+│   ├── dados_analíticos_brutos.csv
+│   ├── dados_analíticos_transformados.csv
+│   └── informação_boletim.csv
+├── 📂 os/
+│   └── dados_extraidos_os.csv
+└── 📂 geochem/
+    ├── amostras e resultados analíticos.csv
+    ├── estações das amostras analisadas.csv
+    ├── duplicatas de campo.csv
+    └── condições analíticas.csv
 
-**Convenção de nomes do ZIP**: `boletins_<classe>_<lab>_YYYYMMDD.zip`
+📝 Notas Técnicas
+Encoding: Utiliza latin1 na exportação para compatibilidade total com Excel (caracteres especiais e acentos).
 
-Exemplo: `boletins_sedimento_de_corrente_geosol_20251207.zip`
+Limpeza: Arquivos temporários de upload são deletados automaticamente ao fechar a sessão.
 
-## Notas
+Robustez: Busca arquivos Excel ignorando diferenciação entre maiúsculas e minúsculas no padrão .xlsx.
 
-- Os arquivos `inputs/nomes_info.csv` e `inputs/ucc/ucc.csv` são necessários para o funcionamento
-- A pasta `outputs/` é gerada localmente mas não é versionada no Git
-- Os CSVs são salvos com encoding latin1 para compatibilidade
-
-## Autor
-
+👩‍💻 Autora
 Viviane Ferrari
 
-## Licença
+📄 Licença
+Este projeto está sob a licença MIT.
 
-MIT
+
