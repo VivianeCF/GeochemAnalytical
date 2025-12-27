@@ -259,7 +259,7 @@ if (length(list_bol) == 0) {
         "no. de amostras",
         "projeto",
         "ship",
-        "entrega dos resultados"
+        "data do recebimento"
       )
 
       library(dplyr)
