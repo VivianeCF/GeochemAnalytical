@@ -444,13 +444,13 @@ if (length(list_bol) == 0) {
   QAQC_orig <- QAQC_orig |>
     dplyr::relocate(c(Boletim), .after = classe_am)
   QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$NUM_LAB), ]
-  QAQC_orig$ID <- 1:nrow(QAQC_orig)
-  QAQC_orig <- QAQC_orig |> dplyr::relocate(ID)
+  # QAQC_orig$ID <- 1:nrow(QAQC_orig)
+  # QAQC_orig <- QAQC_orig |> dplyr::relocate(ID)
 
   ## Pivoteia os dados analíticos
   QAQC_orig_pivo <- QAQC_orig |>
     tidyr::pivot_longer(
-      cols = 5:(ncol(QAQC_orig)),
+      cols = 4:(ncol(QAQC_orig)),
       names_to = "analito",
       values_to = "valor"
     )
@@ -558,7 +558,7 @@ if (length(list_bol) == 0) {
   QAQC_transf <-
     QAQC_transf |>
     dplyr::mutate(dplyr::across(
-      7:(ncol(QAQC_transf)),
+      6:(ncol(QAQC_transf)),
       ~ suppressWarnings(as.numeric(.))
     ))
   QAQC_05ld <- ltdl.fix.df(QAQC_transf)
