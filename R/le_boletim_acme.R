@@ -632,7 +632,7 @@ if (length(list_bol) == 0) {
   )
 
   ref <- unique(ref)
-  colnames(ref) <- c("EL", "UN", "Metodo", "LDI", "DIG", "Nome", "UCC")
+  colnames(ref) <- c("EL", "UN", "METODO", "LDI", "DIG", "Nome", "UCC")
 
   out[[1]] <- dpivo # dados analíticos brutos
   out[[2]] <- df_sc_05ld # dados analíticos transformados

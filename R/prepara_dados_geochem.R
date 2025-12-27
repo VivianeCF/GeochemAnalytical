@@ -1,22 +1,32 @@
-prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, metodo_alvo) {
+prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo) {
   out <- list()
   
 # dados_pivo <- read.csv2("outputs/dados_transformados_pivotados.csv", fileEncoding = "latin1")
 # info_os <- read.csv2("outputs/dados_os.csv", fileEncoding = "latin1")
-# metodo_alvo = "ICM14B" 
+
 # ca <- read.csv2("outputs/condições_analíticas.csv", fileEncoding = "latin1")
 
   dados_pivo <- dados_pivo |> 
   dplyr::select(-unidade) |>
-  dplyr::filter(metodo == !!metodo_alvo) |>
   dplyr::select(NUM_LAB, metodo, analito, valor)
 
-  dados <- dados_pivo |>
+  metodos <- unique(ca$METODO)
+
+  lista_dados <- list()
+
+  for(i in seq(metodos)){
+
+    dados_filtro <- dados_pivo |> dplyr::filter(metodo == metodos[i])
+
+    lista_dados[[i]] <- dados_filtro |> 
     tidyr::pivot_wider(
       names_from = "analito",
       values_from = "valor",
       names_sort = TRUE
     )
+      }
+
+  dados <- do.call(dplyr::bind_rows, lista_dados)
 
   info_os <- info_os |>
     dplyr::select(LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
@@ -24,8 +34,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, metodo_alvo)
 
   dup_campo <- dados |>
     dplyr::group_by(LONGITUDE, LATITUDE) |>
-    dplyr::filter(n() > 1) |>
-    dplyr::ungroup()
+    dplyr::filter(n() > 1) 
   
   dup_campo$COD <- rep(c("SMP", "DUP"), nrow(dup_campo) / 2)
 
@@ -50,7 +59,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, metodo_alvo)
     remove = FALSE
   )
   dados_smp_sf <- dados_smp_sf |> dplyr::select(VALUE, LONGITUDE, LATITUDE)
-  dados_smp <- dados_smp |> dplyr::select(!c(metodo, C.C, PROJETO, LOTE, LONGITUDE, LATITUDE))
+  dados_smp <- dados_smp |> dplyr::select(!c(C.C, PROJETO, LOTE, LONGITUDE, LATITUDE))
   dados_smp$ESTACAO <- gsub("-S-", "-", dados_smp$ESTACAO, fixed = TRUE)
 
 
@@ -63,7 +72,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, metodo_alvo)
   if (!dir.exists(caminho_subpasta)) {
     dir.create(caminho_subpasta, recursive = TRUE, showWarnings = FALSE)
   }
-
+  colnames(dados_smp) <- gsub("metodo", "METODO", colnames(dados_smp), fixed = TRUE)
   write.csv2(
     dados_smp,
     file.path(caminho_subpasta, "mydata.csv"),

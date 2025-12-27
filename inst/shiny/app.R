@@ -184,11 +184,6 @@ ui <- dashboardPage(
               "centro_custo",
               "Centro de Custo",
               placeholder = "Ex: 4077.500"
-            ),
-            textInput(
-              "metodo",
-              "Método",
-              placeholder = "Ex: ICM14B"
             )
           )
         )
@@ -490,8 +485,7 @@ res <- tryCatch({
         dir_out     = dir_geochem_out, 
         info_os     = dados_os_processados, 
         ca          = dados_boletins[['condições de análise']], 
-        dados_pivo  = dados_boletins[['dados transformados pivotados']], 
-        metodo_alvo = input$metodo
+        dados_pivo  = dados_boletins[['dados transformados pivotados']]
       )
 
       # 4. Montar a lista final para o result()
