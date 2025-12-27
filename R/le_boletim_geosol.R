@@ -286,7 +286,8 @@ if (length(list_bol) == 0) {
   ## Retira linhas sem NUM_LAB
   df_sc <- df_da[!is.na(df_da$NUM_LAB), ]
   df_sc <- df_sc[df_sc$classe_am != "", ]
-  df_sc$classe_am <- gsub("FOSFATO", "ROCHA", df_sc$classe_am, fixed = TRUE)
+
+  
   ## Substitui valores nulos por NA
   df_sc <- data.frame(lapply(df_sc, function(x) {
     gsub("N.A.", NA, x, fixed = TRUE)
@@ -299,6 +300,13 @@ if (length(list_bol) == 0) {
   df_sc <- df_sc |> dplyr::relocate(c(Boletim), .after = classe_am)
   df_sc <- df_sc |>
     dplyr::distinct(NUM_LAB, classe_am, Boletim, .keep_all = TRUE)
+    lista_classes <- read.csv2("inputs/lista_classes.csv", fileEncoding = "latin1")
+  recode_map <- setNames(lista_classes$novo, lista_classes$original)
+  
+  # df_sc$classe_am <- gsub("FOSFATO", "ROCHA", df_sc$classe_am, fixed = TRUE)
+  df_sc <- df_sc |>
+  dplyr::mutate(classe_am = dplyr::recode(classe_am, !!!recode_map))
+
   ## Pivoteia os dados analíticos
   df_bruto_pivo <- df_sc |>
     tidyr::pivot_longer(
@@ -613,8 +621,16 @@ if (length(list_bol) == 0) {
     all.x = FALSE
   )
   ref <- unique(ref)
+  colnames(QAQC_05ld) <- gsub("classe_am", "COD", colnames(QAQC_05ld))
+  colnames(QAQC_orig) <- gsub("classe_am", "COD", colnames(QAQC_orig))
+
+  colnames(df_sc_05ld) <- gsub("classe_am", "CLASSE", colnames(df_sc_05ld))
+  colnames(dpivo) <- gsub("classe_am", "CLASSE", colnames(dpivo))
+  colnames(df_bruto_pivo) <- gsub("classe_am", "CLASSE", colnames(df_bruto_pivo))  
+  colnames(df2) <- gsub("classe_am", "CLASSE", colnames(df2))  
 
   colnames(ref) <- c("EL", "UN", "METODO", "LDI", "DIG", "Nome", "UCC")
+
   out[[1]] <- dpivo # dados analíticos brutos
   out[[2]] <- df_sc_05ld # dados analíticos transformados
   out[[3]] <- df_bruto_pivo # dados analíticos brutos pivotados
@@ -652,6 +668,7 @@ if (length(list_bol) == 0) {
     fileEncoding = "latin1",
     row.names = FALSE
   )
+  
   write.csv2(
     QAQC_05ld,
     file.path(caminho_subpasta, "dados_qaqc_transformados.csv"),

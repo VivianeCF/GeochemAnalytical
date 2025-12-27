@@ -2,13 +2,17 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo) {
   out <- list()
   
 # dados_pivo <- read.csv2("outputs/dados_transformados_pivotados.csv", fileEncoding = "latin1")
+colnames(dados_pivo) <- gsub("metodo", "METODO", colnames(dados_pivo), fixed = TRUE)
+colnames(dados_pivo) <- gsub("Boletim", "BOLETIM", colnames(dados_pivo), fixed = TRUE)
 # info_os <- read.csv2("outputs/dados_os.csv", fileEncoding = "latin1")
 
-# ca <- read.csv2("outputs/condições_analíticas.csv", fileEncoding = "latin1")
+  
+# ca <- read.csv2("outputs/myjob.csv", fileEncoding = "latin1")
+  
 
   dados_pivo <- dados_pivo |> 
   dplyr::select(-unidade) |>
-  dplyr::select(NUM_LAB, metodo, analito, valor)
+  dplyr::select(NUM_LAB, METODO, BOLETIM, analito, valor)
 
   metodos <- unique(ca$METODO)
 
@@ -16,7 +20,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo) {
 
   for(i in seq(metodos)){
 
-    dados_filtro <- dados_pivo |> dplyr::filter(metodo == metodos[i])
+    dados_filtro <- dados_pivo |> dplyr::filter(METODO == metodos[i])
 
     lista_dados[[i]] <- dados_filtro |> 
     tidyr::pivot_wider(
@@ -40,7 +44,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo) {
 
   dup_campo <- dup_campo |> dplyr::relocate(COD, .after = NUM_CAMPO)
 
-  dup_campo <- dup_campo |> dplyr::select(!c(metodo, C.C, PROJETO, LOTE, LONGITUDE, LATITUDE))
+  # dup_campo <- dup_campo |> dplyr::select(!c( C.C, PROJETO, LONGITUDE, LATITUDE))
   
   dados_smp <- dados |>
     dplyr::arrange(NUM_CAMPO) |>
@@ -48,8 +52,10 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo) {
   
   dados_smp$COD <- "SMP"
   dados_smp$VALUE <- 1:nrow(dados_smp)
-  dados_smp <- dados_smp |> dplyr::rename(ESTACAO = NUM_CAMPO)
-  dados_smp <- dados_smp |> dplyr::relocate(VALUE, COD, NUM_LAB, ESTACAO)
+
+  dados_smp$ESTACAO <- gsub("-S-", "-", dados_smp$NUM_CAMPO, fixed = TRUE)
+  # dados_smp <- dados_smp |> dplyr::rename(ESTACAO = NUM_CAMPO)
+  dados_smp <- dados_smp |> dplyr::relocate(VALUE,  COD, ESTACAO, LONGITUDE, LATITUDE, C.C, PROJETO,  NUM_LAB, METODO, LOTE, BOLETIM)
 
 
   dados_smp_sf <- sf::st_as_sf(
@@ -59,9 +65,16 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo) {
     remove = FALSE
   )
   dados_smp_sf <- dados_smp_sf |> dplyr::select(VALUE, LONGITUDE, LATITUDE)
-  dados_smp <- dados_smp |> dplyr::select(!c(C.C, PROJETO, LOTE, LONGITUDE, LATITUDE))
-  dados_smp$ESTACAO <- gsub("-S-", "-", dados_smp$ESTACAO, fixed = TRUE)
+  # dados_smp <- dados_smp |> dplyr::select(!c(COD, LONGITUDE, LATITUDE))
+  dup_campo$ESTACAO <- gsub("-S-", "-", dup_campo$NUM_CAMPO, fixed = TRUE)
 
+  dup_campo <- dup_campo |>
+  dplyr::mutate(ESTACAO = dplyr::if_else(stringr::str_length(ESTACAO) == 13, 
+                           stringr::str_sub(ESTACAO, 1, -2), 
+                           ESTACAO))
+  
+  dup_campo <- left_join(dup_campo,dados_smp[, c("VALUE", "ESTACAO")],  by= "ESTACAO")
+  dup_campo <- dup_campo |> dplyr::relocate(VALUE,  COD, ESTACAO, LONGITUDE, LATITUDE, C.C, PROJETO,  NUM_LAB, METODO, LOTE, BOLETIM)
 
   out[[1]] <- dados_smp # dados amostrados
   out[[2]] <- dados_smp_sf # estações com dados amostrados

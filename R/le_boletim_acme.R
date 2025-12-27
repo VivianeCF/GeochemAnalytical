@@ -336,6 +336,13 @@ if (length(list_bol) == 0) {
   }))
   df_sc$classe_am <- classes[classe_am]
   df_sc <- df_sc |> dplyr::relocate(Boletim, .after = classe_am)
+  
+  lista_classes <- read.csv2("inputs/lista_classes.csv", fileEncoding = "latin1")
+  recode_map <- setNames(lista_classes$novo, lista_classes$original)
+  
+  # df_sc$classe_am <- gsub("FOSFATO", "ROCHA", df_sc$classe_am, fixed = TRUE)
+  df_sc <- df_sc |>
+  dplyr::mutate(classe_am = dplyr::recode(classe_am, !!!recode_map))
 
   ## Pivoteia os dados analíticos
   df_bruto_pivo <- df_sc |>
@@ -633,6 +640,13 @@ if (length(list_bol) == 0) {
 
   ref <- unique(ref)
   colnames(ref) <- c("EL", "UN", "METODO", "LDI", "DIG", "Nome", "UCC")
+  colnames(QAQC_05ld) <- gsub("classe_am", "COD", colnames(QAQC_05ld))
+  colnames(QAQC_orig) <- gsub("classe_am", "COD", colnames(QAQC_orig))
+
+  colnames(df_sc_05ld) <- gsub("classe_am", "CLASSE", colnames(df_sc_05ld))
+  colnames(dpivo) <- gsub("classe_am", "CLASSE", colnames(dpivo))
+  colnames(df_bruto_pivo) <- gsub("classe_am", "CLASSE", colnames(df_bruto_pivo))  
+  colnames(df2) <- gsub("classe_am", "CLASSE", colnames(df2))  
 
   out[[1]] <- dpivo # dados analíticos brutos
   out[[2]] <- df_sc_05ld # dados analíticos transformados
