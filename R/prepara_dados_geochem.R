@@ -75,7 +75,7 @@ colnames(dados_pivo) <- gsub("Boletim", "BOLETIM", colnames(dados_pivo), fixed =
   
   dup_campo <- left_join(dup_campo,dados_smp[, c("VALUE", "ESTACAO")],  by= "ESTACAO")
   dup_campo <- dup_campo |> dplyr::relocate(VALUE,  COD, ESTACAO, LONGITUDE, LATITUDE, C.C, PROJETO,  NUM_LAB, METODO, LOTE, BOLETIM)
-
+  dados_smp <- dados_smp |> dplyr::select(-LONGITUDE, -LATITUDE)
   out[[1]] <- dados_smp # dados amostrados
   out[[2]] <- dados_smp_sf # estações com dados amostrados
   out[[3]] <- dup_campo # duplicatas de campo
