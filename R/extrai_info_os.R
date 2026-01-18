@@ -1,6 +1,6 @@
-
+extrai_info_os <- function(os){
 # Leitura da OS -----------------------------
-os <- readxl::read_xlsx("~/Projetos/Temp/os/OS_RA_002_SUREG_SP_2025_Autorizado.xlsx", sheet = 1, col_names  = FALSE)
+os
 
 # Dados da empresa solicitante --------------------------
 busca <- "SERVIÇO GEOLÓGICO DO BRASIL-SGB"
@@ -211,6 +211,6 @@ res_solicitacao <- data.frame(
 
 colnames(res_solicitacao) <- 
   c("Total de amostras", "Projeto", "Centro de Custo", "No. de RA", "No. de Contrato", "No. da Nota de Empenho", "Data da OS")
-
+}
 
 
