@@ -501,7 +501,8 @@ res <- tryCatch({
         dir_os = dir_os_path,
         dir_out = dir_os_out,
         projeto_nome = input$projeto_nome,
-        centro_custo = input$centro_custo
+        centro_custo = input$centro_custo,
+        tipo = input$tipo_analise
       )
 
       # 2. Rodar a função principal dos boletins
@@ -512,7 +513,8 @@ res <- tryCatch({
           dir_bol   = dir_bol,
           dir_ucc   = "inputs/ucc/",
           ref_ucc   = "ucc.csv",
-          dir_out   = dir_bol_out
+          dir_out   = dir_bol_out,
+          tipo = input$tipo_analise
         )
       )
 

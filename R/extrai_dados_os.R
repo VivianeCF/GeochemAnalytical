@@ -2,8 +2,8 @@ extrai_dados_os <- function(
   dir_os,
   dir_out,
   projeto_nome,
-  centro_custo){
-   ## Gera o camionho para os arquivos
+  centro_custo, tipo = "Química"){
+if(tipo == "Química"){   ## Gera o camionho para os arquivos
   ## Entrada
   files_os <- list.files(dir_os, pattern = "\\.xlsx$", full.names = TRUE, recursive = TRUE, 
   ignore.case = TRUE)
@@ -61,6 +61,9 @@ dados_amostras <- dados_amostras |> dplyr::filter(!is.na(NUM_LAB))
     fileEncoding = "latin1",
     row.names = FALSE
   )
+}else{
+  dados_amostras <- NA
+}
 # dados_amostras <- unique(dados_amostras)
 return(dados_amostras)
 }

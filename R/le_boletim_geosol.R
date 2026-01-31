@@ -21,9 +21,10 @@ le_boletim_quimica_geosol <- function(
   dir_bol,
   dir_ucc,
   ref_ucc,
-  dir_out
+  dir_out,
+  tipo = "Química"
 ) {
-  source("R/ltdl.fix.df.R")
+if(tipo == "Química"){  source("R/ltdl.fix.df.R")
   ## Diretórios de entrada dos dados
   classes <-
     c(
@@ -700,6 +701,6 @@ if (length(list_bol) == 0) {
     "condições de análise",
     "informações dos boletins"
   )
-
+}else{out <- list()}
   return(out)
 }
