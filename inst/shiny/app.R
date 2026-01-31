@@ -162,6 +162,12 @@ ui <- dashboardPage(
             solidHeader = TRUE,
             width = 6,
             radioButtons(
+              "tipo_analise",
+              "Tipo de análise",
+              choices = c("Química", "Mineralógica"),
+              selected = "Guímica"
+            ),
+            radioButtons(
               "lab",
               "Laboratório",
               choices = c("ACME", "GEOSOL"),
@@ -400,6 +406,38 @@ server <- function(input, output, session) {
     return(NA_character_)
   }
 
+observeEvent(input$tipo_analise, {
+  if (input$tipo_analise == "Mineralógica") {
+    # --- Lógica para Mineralógica ---
+    updateRadioButtons(session, "lab",
+      choices = "GEOSOL",
+      selected = "GEOSOL"
+    )
+    
+    updateSelectInput(session, "classe_am",
+      choices = "Concentrado de bateia",
+      selected = "Concentrado de bateia"
+    )
+    
+  } else {
+    # --- Lógica para Química ---
+    # 1. Restaura os laboratórios
+    updateRadioButtons(session, "lab",
+      choices = c("ACME", "GEOSOL"),
+      selected = "ACME"
+    )
+    
+    # 2. Filtra o vetor classes: remove "Concentrado de bateia"
+    # O comando abaixo pega todas as classes EXCETO a de bateia
+    classes_quimica <- classes[classes != "Concentrado de bateia"]
+    
+    updateSelectInput(session, "classe_am",
+      choices = classes_quimica,
+      selected = classes_quimica[1] # Seleciona a primeira opção válida
+    )
+  }
+})
+  
   observeEvent(input$run, {
     # --- VALIDAÇÃO INICIAL ---
     if (is.null(input$upload) || is.null(input$upload_os)) {
