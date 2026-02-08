@@ -51,16 +51,6 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
   cod_classes <- c("B", "S", "R", "L", "A")
   sufixo <- paste0("-", cod_classes[classe_am], "-")
 
-  # 3. Criação de dados_smp (Base de referência para os IDs)
-  dados_smp <- dados |>
-    arrange(NUM_CAMPO) |>
-    distinct(LONGITUDE, LATITUDE, .keep_all = TRUE) |>
-    mutate(
-      COD = "SMP",
-      VALUE = row_number(),
-      # Garante que a ESTACAO seja limpa para o Join
-      ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE)
-    )
 
   # 4. Processamento de Duplicatas (Onde estava o erro do NA)
   dup_campo <- dados |>
@@ -80,6 +70,28 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
 
     # IMPORTANTE: Remover VALUE antigo antes do join para evitar VALUE.x e VALUE.y
     dup_campo <- dup_campo |> select(-any_of("VALUE"))
+
+
+      # 3. Criação de dados_smp (Base de referência para os IDs)
+  if (nrow(dup_campo) > 0) {
+    dados_smp <- dados |>
+    arrange(NUM_CAMPO) |>
+    distinct(LONGITUDE, LATITUDE, .keep_all = TRUE) |>
+    mutate(
+      COD = "SMP",
+      VALUE = row_number(),
+      # Garante que a ESTACAO seja limpa para o Join
+      ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE)
+    )}else{
+        dados_smp <- dados |>
+    arrange(NUM_CAMPO) |>
+    mutate(
+      COD = "SMP",
+      VALUE = row_number(),
+      # Garante que a ESTACAO seja limpa para o Join
+      ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE)
+    )
+  }
 
     # Join para trazer o VALUE correto da amostra SMP correspondente
     # Usamos distinct em dados_smp para garantir que a chave seja única
@@ -137,7 +149,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
     ) |>
     select(-LONGITUDE, -LATITUDE)
 
-  selcol <- colnames(dados_smp_final)[11:ncol(dados_smp_final)]
+  selcol <- colnames(dados_smp_final)[12:ncol(dados_smp_final)]
   dados_smp_final <- dados_smp_final |> filter(!if_all(all_of(selcol), is.na))
 
   # Escrita dos arquivos
