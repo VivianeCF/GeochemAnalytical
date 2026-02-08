@@ -165,13 +165,13 @@ ui <- dashboardPage(
               "tipo_analise",
               "Tipo de análise",
               choices = c("Química", "Mineralógica"),
-              selected = "Guímica"
+              selected = "Química"
             ),
             radioButtons(
               "lab",
               "Laboratório",
-              choices = c("ACME", "GEOSOL"),
-              selected = "ACME"
+              choices = c( "GEOSOL", "ACME"),
+              selected = "GEOSOL"
             ),
             selectInput(
               "classe_am",
@@ -409,8 +409,8 @@ server <- function(input, output, session) {
     # --- Lógica para Química ---
     # 1. Restaura os laboratórios
     updateRadioButtons(session, "lab",
-      choices = c("ACME", "GEOSOL"),
-      selected = "ACME"
+      choices = c("GEOSOL","ACME" ),
+      selected = "GEOSOL"
     )
     
     # 2. Filtra o vetor classes: remove "Concentrado de bateia"

@@ -980,7 +980,20 @@ le_boletim_geosol <- function(
       )
 
     ca <- do.call(dplyr::bind_rows, datalist2)
+# Esta função remove aspas e substitui ponto e vírgula por vírgula simples
+limpar_texto <- function(df) {
+  df[] <- lapply(df, function(x) {
+    if (is.character(x)) {
+      x <- gsub('"', '', x)    # Remove aspas duplas (")
+      x <- gsub(';', ',', x)   # Troca ponto e vírgula (;) por vírgula (,)
+    }
+    return(x)
+  })
+  return(df)
+}
 
+# Aplica a limpeza nos seus objetos de dados
+ca <- limpar_texto(ca)
     df_pivo <- merge(df_pivo, ca, by = "analito")
     prep_amostra <- df_pivo |> dplyr::filter(!(metodo %in% c("ANALISE_SEMIQ", "CONT_PINTAS")))
     df_pivo <- df_pivo |> dplyr::filter(metodo %in% c("ANALISE_SEMIQ", "CONT_PINTAS"))
