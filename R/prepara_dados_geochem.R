@@ -163,10 +163,26 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
     fileEncoding = "latin1",
     row.names = FALSE
   )
-  sf::write_sf(
-    dados_smp_sf,
-    file.path(caminho_subpasta, "myoutlet.shp"),
-    delete_dsn = TRUE
+  # sf::write_sf(
+  #   dados_smp_sf,
+  #   file.path(caminho_subpasta, "myoutlet.shp"),
+  #   delete_dsn = TRUE
+  # )
+arquivo_shp <- file.path(caminho_subpasta, "myoutlet.shp")
+
+# 1. Forçar a limpeza de qualquer tentativa anterior (evita conflito de acesso)
+if (file.exists(arquivo_shp)) {
+  file.remove(list.files(caminho_subpasta, pattern = "myoutlet", full.names = TRUE))
+}
+  suppressMessages(suppressWarnings({
+  sf::st_write(
+    obj = dados_smp_sf, 
+    dsn = arquivo_shp, 
+    driver = "ESRI Shapefile", 
+    delete_dsn = TRUE, 
+    quiet = TRUE  # O GDAL ignora avisos internos com isso
+  )
+})
   )
   write.csv2(
     dup_campo,
