@@ -18,6 +18,8 @@ Thumbs.db
 # Project-specific
 !inputs/nomes_info.csv
 !inputs/ucc/ucc.csv
+outputs/
+pasta_saida/
 
 # Temporary files
 .tmp/
