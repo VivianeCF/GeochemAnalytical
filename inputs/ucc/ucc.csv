@@ -1,0 +1,85 @@
+EL;UN;UCC;Nome;Name
+Ag;ppb;53;Prata;Silver
+Ag;ppm;0,053;Prata;Silver
+Al;pct;8,15;Alumínio;Aluminum / Aluminium
+Al2O3;pct;66;Óxido de alumínio;Aluminum oxide
+As;ppm;4,8;Arsênio;Arsenic
+Au;ppb;1,5;Ouro;Gold
+Au;ppm;0,0015;Ouro;Gold
+B;ppm;17;Boro;Boron
+Ba;ppm;624;Bário;Barium
+Be;ppm;2,1;Berílio;Beryllium
+Bi;ppm;0,16;Bismuto;Bismuth
+Ca;pct;2,57;Cálcio;Calcium
+CaO;pct;15,2;Óxido de cálcio;Calcium oxide
+Cd;ppm;0,09;Cádmio;Cadmium
+Ce;ppm;63;Cério;Cerium
+Co;ppm;17,3;Cobalto;Cobalt
+Cr;ppm;92;Cromo;Chromium
+Cr2O3;pct;3,2;Óxido de cromo (III);Chromium(III) oxide
+Cs;ppm;4,9;Césio;Cesium
+Cu;ppm;28;Cobre;Copper
+Dy;ppm;5,8;Disprósio;Dysprosium
+Er;ppm;3,8;Érbio;Erbium
+Eu;ppm;1,2;Európio;Europium
+Fe;pct;3,92;Ferro;Iron
+Fe2O3;pct;2,5;Óxido de ferro (III);Iron(III) oxide
+FeO;pct;3,7;Óxido de ferro (II);Iron(II) oxide
+Ga;ppm;17,5;Gálio;Gallium
+Gd;ppm;4,9;Gadolínio;Gadolinium
+Ge;ppm;1,4;Germânio;Germanium
+Hf;ppm;5,3;Háfnio;Hafnium
+Hg;ppb;50;Mercúrio;Mercury
+Ho;ppm;1,1;Hólmio;Holmium
+In;ppm;0,06;Índio;Indium
+K;pct;2,32;Potássio;Potassium
+K2O;pct;4;Óxido de potássio;Potassium oxide
+La;ppm;31;Lantânio;Lanthanum
+Li;ppm;21;Lítio;Lithium
+LOI;pct;2,25;Loss on Ignition;Perda ao fogo
+Lu;ppm;0,34;Lutécio;Lutetium
+Mg;pct;0,06;Magnésio;Magnesium
+MgO;pct;3,9;Óxido de magnésio;Magnesium oxide
+Mn;ppm;19200;Manganês;Manganese
+Mn;pct;1,92;Manganês;Manganese
+MnO;pct;3,4;Óxido de manganês (II);Manganese(II) oxide
+Mo;ppm;1,1;Molibdênio;Molybdenum
+Na;pct;2,43;Sódio;Sodium
+Na2O;pct;0,6;Óxido de sódio;Sodium oxide
+Nb;ppm;12;Nióbio;Niobium
+Nd;ppm;28;Neodímio;Neodymium
+Ni;ppm;47;Níquel;Nickel
+P;ppm;655;Fósforo;Phosphorus
+P;pct;0,0655;Fósforo;Phosphorus
+P2O5;pct;0,07;Pentóxido de difósforo;Diphosphorus pentoxide
+Pb;ppm;17;Chumbo;Lead
+Pd;ppb;0,52;Paládio;Palladium
+Pr;ppm;3,5;Praseodímio;Praseodymium
+Pt;ppb;0,5;Platina;Platinum
+Rb;ppm;84;Rubídio;Rubidium
+Re;ppb;0,198;Rênio;Rhenium
+Re;ppm;0,000198;Rênio;Rhenium
+S;pct;0,06;Enxofre;Sulfur
+Sb;ppm;0,4;Antimônio;Antimony
+Sc;ppm;14;Escândio;Scandium
+Se;ppm;0,09;Selênio;Selenium
+SiO2;pct;0,14;Sílica;Silicon
+Sm;ppm;4,7;Samário;Samarium
+Sn;ppm;2,1;Estanho;Tin
+Sr;ppm;320;Estrôncio;Strontium
+Sum;pct;100;Soma;Sum
+Ta;ppm;0,9;Tântalo;Tantalum
+Tb;ppm;0,8;Térbio;Terbium
+Te;ppm;NA;Telúrio;Tellurium
+Th;ppm;10,5;Tório;Thorium
+Ti;pct;0,38;Titânio;Titanium
+TiO2;pct;0,01;Dióxido de titânio;Titanium dioxide
+Tl;ppm;0,9;Tálio;Thallium
+Tm;ppm;0,55;Túlio;Thulium
+U;ppm;2,7;Urânio;Uranium
+V;ppm;97;Vanádio;Vanadium
+W;ppm;1,9;Tungstênio;Tungsten
+Y;ppm;21;Ítrio;Yttrium
+Yb;ppm;3,4;Itérbio;Ytterbium
+Zn;ppm;67;Zinco;Zinc
+Zr;ppm;193;Zircônio;Zirconium
