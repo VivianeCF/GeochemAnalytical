@@ -1,0 +1,25 @@
+# R
+.Rhistory
+.Rdata
+.Rproj.user/
+.Rprofile
+*.Rproj
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project-specific
+!inputs/nomes_info.csv
+!inputs/ucc/ucc.csv
+
+# Temporary files
+.tmp/
+temp/
+*.tmp
