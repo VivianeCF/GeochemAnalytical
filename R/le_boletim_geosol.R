@@ -849,15 +849,20 @@ le_boletim_geosol <- function(
       ]
 
       colnames(boletim) <- c("NUM_LAB", analito)
-      boletim <- boletim[!is.na(boletim$NUM_LAB), ]
+      
 
       job_boletim <- rep(as.character(n_job), nrow(boletim))
       boletim <- cbind(boletim, job_boletim)
+     
       colnames(boletim)[ncol(boletim)] <- "Boletim"
+      
+      boletim <- boletim[!is.na(boletim$NUM_LAB), ]
+
+      job_bol <- rep(as.character(n_job), length(metodo))
       # Cria tabela das condições analíticas
       LAB <- rep(as.character(laboratorio), length(metodo))
       condicoes_analiticas <-
-        data.frame(metodo, analito, unidade, job_boletim, LAB)
+        data.frame( metodo, analito, unidade, job_bol, LAB)
 
       # Preenchendo valores de metodo
       condicoes_analiticas <- condicoes_analiticas |>
@@ -967,19 +972,11 @@ le_boletim_geosol <- function(
       datalist3[[i]] <- boletim
     }
 
-    df_dados_brutos <- do.call(dplyr::bind_rows, datalist3)
+df_dados_brutos <- do.call(dplyr::bind_rows, datalist3)
 
-    df_dados_brutos$CLASSE <- classe_am
+df_dados_brutos$CLASSE <- classe_am
 
-    df_pivo <- df_dados_brutos |>
-      tidyr::pivot_longer(
-        cols = 2:(ncol(df_dados_brutos) - 1),
-        names_to = "analito",
-        values_to = "valor",
-        values_drop_na = TRUE
-      )
-
-    ca <- do.call(dplyr::bind_rows, datalist2)
+ca <- do.call(dplyr::bind_rows, datalist2)
 # Esta função remove aspas e substitui ponto e vírgula por vírgula simples
 limpar_texto <- function(df) {
   df[] <- lapply(df, function(x) {
@@ -991,12 +988,28 @@ limpar_texto <- function(df) {
   })
   return(df)
 }
-
 # Aplica a limpeza nos seus objetos de dados
-ca <- limpar_texto(ca)
-    df_pivo <- merge(df_pivo, ca, by = "analito")
+  ca <- limpar_texto(ca)
+  ca <- ca |> dplyr::select(metodo,analito,unidade)
+  ca <- unique(ca)
+  
+ analitos <- ca[ca$metodo %in% c("CONT_PINTAS", "ANALISE_SEMIQ", "ANALISE_QUANT"), "analito"]  
+ preparacao <- ca[!(ca$metodo %in% c("CONT_PINTAS", "ANALISE_SEMIQ", "ANALISE_QUANT")), "analito"]      
+
+df_pivo <- df_dados_brutos |> 
+  tidyr::pivot_longer(
+    cols = dplyr::any_of(c(analitos, preparacao)), # Ignora o que não existir
+    names_to = "analito",
+    values_to = "valor",
+    values_drop_na = TRUE
+  )
+
+  df_pivo <- dplyr::left_join(df_pivo, ca, by = "analito", relationship =
+  "many-to-many")
+
     prep_amostra <- df_pivo |> dplyr::filter(!(metodo %in% c("ANALISE_SEMIQ", "CONT_PINTAS")))
-    df_pivo <- df_pivo |> dplyr::filter(metodo %in% c("ANALISE_SEMIQ", "CONT_PINTAS"))
+    
+    df_pivo <- df_pivo |> dplyr::filter(metodo %in% c("CONT_PINTAS", "ANALISE_SEMIQ"))
     
     ## Transforma para intervalos de classes
     valor_unitario <- c("1", "3", "15", "40", "60", "85")
@@ -1011,6 +1024,7 @@ ca <- limpar_texto(ca)
    df_legenda <- data.frame(valor=valor_unitario, valor_novo=valor_intervalo)
    df_legenda$metodo <- "ANALISE_SEMIQ"
   
+    
 # 4. Transformação condicional
 # Usamos left_join para não perder nenhuma linha do df_pivo
  df_pivo_transf <- df_pivo  |> # Garante compatibilidade de tipo
@@ -1021,22 +1035,64 @@ ca <- limpar_texto(ca)
     valor = dplyr::if_else(!is.na(valor_novo), valor_novo, valor)
   ) |>
   dplyr::select(-valor_novo) |>
-  dplyr::relocate(NUM_LAB, CLASSE, Boletim, analito, unidade, metodo, valor)
+  dplyr::relocate(NUM_LAB, CLASSE,  analito, unidade, metodo, valor)
+  df_pivo_transf <- unique(df_pivo_transf)
   
-  df_dados_transf <- df_pivo_transf |> dplyr::arrange(metodo) |>
+    df_dados_transf <- df_pivo_transf |> dplyr::arrange(metodo) |>
     tidyr::pivot_wider(values_from = "valor", names_from = "analito")  |>
-  dplyr::relocate(NUM_LAB, CLASSE, Boletim,unidade, metodo,Laboratório, 'OURO < 0,5 mm' , 'OURO >1mm' ,                                 
- 'OURO 0,5 – 1mm' )
+  dplyr::relocate(NUM_LAB, CLASSE, unidade, metodo )
     
+df_dados_brutos <- df_pivo |> 
+  # 1. Garante que a coluna analito siga a ordem do vetor (essencial para o pivot)
+  dplyr::mutate(analito = factor(analito, levels = analitos)) |> 
+  
+  # 2. Transforma para o formato largo
+  tidyr::pivot_wider(
+    names_from = "analito", 
+    values_from = "valor"
+  ) |>
+  
+  # 3. Força a ordem absoluta das colunas
+  # Primeiro as fixas, depois as de preparação, depois os analitos
+  dplyr::relocate(
+    NUM_LAB, CLASSE, Boletim, metodo, unidade, 
+    .before = where(is.numeric) # Garante que fiquem no início
+  ) |>
+  dplyr::relocate(dplyr::any_of(analitos), .after = last_col()) |>
+  # Re-ordenando tudo em uma linha para garantir a sequência dos vetores:
+  dplyr::select(
+    NUM_LAB, CLASSE, Boletim, metodo, unidade,
+    # dplyr::any_of(preparacao),
+    dplyr::any_of(analitos),
+    dplyr::everything() # Caso existam colunas extras que sobraram
+  )
+
+  df_dados_transf <- df_dados_transf[,colnames(df_dados_brutos)]
     
-  df_pivo <- df_pivo |> dplyr::relocate(c(NUM_LAB, CLASSE, Boletim, analito, unidade, metodo, valor))
+  df_prep_amostra <- prep_amostra |> 
+  # 1. Garante que a coluna analito siga a ordem do vetor (essencial para o pivot)
   
+  # 2. Transforma para o formato largo
+  tidyr::pivot_wider(
+    names_from = "analito", 
+    values_from = "valor"
+  ) |>
   
-  
-  df_dados_brutos <- df_pivo |> tidyr::pivot_wider(names_from = "analito", values_from = "valor")|>
-  dplyr::relocate(NUM_LAB, CLASSE, Boletim,unidade, metodo,Laboratório, 'OURO < 0,5 mm' , 'OURO >1mm' ,                                 
- 'OURO 0,5 – 1mm' )
-  df_dados_brutos <- df_dados_brutos[,colnames(df_dados_transf)]
+  # 3. Força a ordem absoluta das colunas
+  # Primeiro as fixas, depois as de preparação, depois os analitos
+  dplyr::relocate(
+    NUM_LAB, CLASSE, Boletim, metodo, unidade, 
+    .before = where(is.numeric) # Garante que fiquem no início
+  ) |>
+  dplyr::relocate(dplyr::any_of(preparacao), .after = last_col()) |>
+  # Re-ordenando tudo em uma linha para garantir a sequência dos vetores:
+  dplyr::select(
+    NUM_LAB, CLASSE, Boletim, metodo, unidade,
+    # dplyr::any_of(preparacao),
+    dplyr::any_of(preparacao),
+    dplyr::everything() # Caso existam colunas extras que sobraram
+  )
+
     
     out[[1]] <- df_dados_brutos
     out[[2]] <- df_dados_transf
