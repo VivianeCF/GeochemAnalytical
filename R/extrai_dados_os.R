@@ -30,6 +30,13 @@ if (nrow(indices_long) == 0) {
     nomes_bol <- df_tudo[(indices_long[1] - 1), (indices_long[2] + 2):(n-1)]
     nomes_extra <- df_tudo[1, (n-1):n]
     colnames(boletim) <- c("Sequência", "Longitude", "Latitude",  nomes_bol, nomes_extra)
+    boletim$Longitude <- gsub(",", ".", boletim$Longitude, fixed = TRUE)
+    boletim$Longitude <- as.numeric(boletim$Longitude)
+    boletim$Latitude <- gsub(",", ".", boletim$Latitude, fixed = TRUE)
+    boletim$Latitude <- as.numeric(boletim$Latitude)
+    boletim <- boletim %>%
+        dplyr::select(where(~ !all(is.na(.))))
+
     indices_cliente <- which(df_info == "INFORMAÇÃO DO CLIENTE", arr.ind = TRUE)
     indices_envio <- which(
     df_info == "* E-MAIL´S PARA RECEBIMENTO DOS RESULTADOS",
@@ -54,6 +61,13 @@ if (nrow(indices_long) == 0) {
     nomes_analise <- df_tudo[(indices_long[1]), (indices_long[2] + 9):(n-3)]
     nomes_extra <- df_tudo[1, (n-2):n]
     colnames(boletim) <- c("Sequência", "Longitude", "Latitude",  nomes_info, nomes_analise, nomes_extra)
+    boletim$Longitude <- gsub(",", ".", boletim$Longitude, fixed = TRUE)
+    boletim$Longitude <- as.numeric(boletim$Longitude)
+    boletim$Latitude <- gsub(",", ".", boletim$Latitude, fixed = TRUE)
+    boletim$Latitude <- as.numeric(boletim$Latitude)
+    boletim <- boletim %>%
+        dplyr::select(where(~ !all(is.na(.))))
+    
     df_info = readxl::read_excel(files_os[i], col_names = TRUE, sheet = 1)
     indices_cliente <- which(df_info == "INFORMAÇÃO DO SOLICITANTE", arr.ind = TRUE)
     indices_envio <- which(
