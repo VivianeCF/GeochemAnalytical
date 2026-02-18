@@ -1096,8 +1096,8 @@ df_dados_brutos <- df_pivo |>
     
     out[[1]] <- df_dados_brutos
     out[[2]] <- df_dados_transf
-    out[[3]] <- df_pivo
-    out[[4]] <- df_pivo_transf
+    out[[3]] <- df_pivo_transf
+    out[[4]] <- df_pivo
     out[[5]] <- ca
     info_bol <- do.call(dplyr::bind_rows, datalist)
     out[[6]] <- info_bol
