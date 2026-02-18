@@ -44,7 +44,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
   dados <- dados[!is.na(dados$METODO), ]
 
   info_os <- info_os |>
-    dplyr::select(LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
+    dplyr::select(VALUE, LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
 
   dados <- dplyr::left_join(info_os, dados, by = "NUM_LAB")
 
@@ -77,7 +77,6 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
         distinct(LONGITUDE, LATITUDE, .keep_all = TRUE) |>
         mutate(
           COD = "SMP",
-          VALUE = row_number(),
           # Garante que a ESTACAO seja limpa para o Join
           ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE)
         )
@@ -86,12 +85,12 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
         arrange(NUM_CAMPO) |>
         mutate(
           COD = "SMP",
-          VALUE = row_number(),
           # Garante que a ESTACAO seja limpa para o Join
           ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE)
         )
     }
-
+    dados_smp <- dados_smp |> dplyr::arrange(VALUE)
+    
     # Join para trazer o VALUE correto da amostra SMP correspondente
     # Usamos distinct em dados_smp para garantir que a chave seja única
     tabela_chaves <- dados_smp |>
@@ -129,8 +128,8 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
     crs = 4674,
     remove = FALSE
   ) |>
-    select(VALUE, LONGITUDE, LATITUDE)
-
+    select(VALUE, LONGITUDE, LATITUDE) 
+  dados_smp_sf <- unique(dados_smp_sf)
   dados_smp_final <- dados_smp |>
     relocate(
       VALUE,

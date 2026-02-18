@@ -263,6 +263,7 @@ caminho_subpasta <- file.path(dir_out)
 if (!dir.exists(caminho_subpasta)) {
   dir.create(caminho_subpasta, recursive = TRUE, showWarnings = FALSE)
 }
+  dados_amostras$VALUE <- 1:nrow(dados_amostras)
 write.csv2(
   dados_amostras,
   file.path(caminho_subpasta, "dados_os.csv"),
