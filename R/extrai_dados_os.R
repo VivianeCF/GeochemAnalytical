@@ -254,7 +254,8 @@ if(tipo == "Mineralógica"){
   colnames(dados_amostras)[1:9] <- primeiras_colunas
   dados_amostras$CLASSE <- "Sedimento de corrente"
 }
-
+    dados_amostras <- dados_amostras |>
+        dplyr::select(where(~ !all(is.na(.))))
 
 dados_amostras$NUM_LAB <- gsub("-", "", dados_amostras$NUM_LAB)
 dados_amostras <- dados_amostras |> dplyr::filter(!is.na(NUM_LAB))
