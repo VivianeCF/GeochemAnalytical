@@ -34,8 +34,8 @@ if (nrow(indices_long) == 0) {
     boletim$Longitude <- as.numeric(boletim$Longitude)
     boletim$Latitude <- gsub(",", ".", boletim$Latitude, fixed = TRUE)
     boletim$Latitude <- as.numeric(boletim$Latitude)
-    boletim <- boletim %>%
-        dplyr::select(where(~ !all(is.na(.))))
+    # boletim <- boletim %>%
+    #     dplyr::select(where(~ !all(is.na(.))))
 
     indices_cliente <- which(df_info == "INFORMAÇÃO DO CLIENTE", arr.ind = TRUE)
     indices_envio <- which(
@@ -65,8 +65,8 @@ if (nrow(indices_long) == 0) {
     boletim$Longitude <- as.numeric(boletim$Longitude)
     boletim$Latitude <- gsub(",", ".", boletim$Latitude, fixed = TRUE)
     boletim$Latitude <- as.numeric(boletim$Latitude)
-    boletim <- boletim %>%
-        dplyr::select(where(~ !all(is.na(.))))
+    # boletim <- boletim %>%
+    #     dplyr::select(where(~ !all(is.na(.))))
     
     df_info = readxl::read_excel(files_os[i], col_names = TRUE, sheet = 1)
     indices_cliente <- which(df_info == "INFORMAÇÃO DO SOLICITANTE", arr.ind = TRUE)
@@ -247,8 +247,8 @@ if(tipo == "Mineralógica"){
   "NUM_CAMPO",
   "LITOTIPO",
   "LOTE", 
-  "NUM_LAB",
-  "CLASSE",
+  "NUM_LAB",  
+  "CLASSE",  
   "MATRIZ"
 )
   colnames(dados_amostras)[1:9] <- primeiras_colunas
