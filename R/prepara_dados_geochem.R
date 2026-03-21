@@ -3,226 +3,109 @@ library(tidyverse)
 
   out <- list()
 
-  # 1. Padronização de nomes
-  colnames(dados_pivo) <- gsub(
-    "metodo",
-    "METODO",
-    colnames(dados_pivo),
-    fixed = TRUE
-  )
-  colnames(dados_pivo) <- gsub(
-    "Boletim",
-    "BOLETIM",
-    colnames(dados_pivo),
-    fixed = TRUE
-  )
-  colnames(ca) <- gsub("metodo", "METODO", colnames(ca), fixed = TRUE)
-  colnames(ca) <- gsub("Boletim", "BOLETIM", colnames(ca), fixed = TRUE)
+library(tidyverse)
 
-  # 2. Pivotagem e Limpeza
-  dados_pivo <- dados_pivo |>
-    dplyr::select(-any_of("unidade")) |>
-    dplyr::select(NUM_LAB, CLASSE, METODO, BOLETIM, analito, valor)
-
-  metodos <- unique(ca$METODO)
-  lista_dados <- list()
-
-  for (i in seq_along(metodos)) {
-    dados_filtro <- dados_pivo |> dplyr::filter(METODO == metodos[i])
-    if (nrow(dados_filtro) > 0) {
-      lista_dados[[i]] <- dados_filtro |>
-        tidyr::pivot_wider(
-          names_from = "analito",
-          values_from = "valor",
-          names_sort = TRUE
-        )
-    }
-  }
-
-  dados <- do.call(dplyr::bind_rows, lista_dados)
-  dados <- dados[!is.na(dados$METODO), ]
+# --- 1. Padronização Robusta de Nomes ---
+# Forçamos as colunas essenciais para MAIÚSCULO antes de começar
+# Força TODAS as colunas para maiúsculo de uma vez
+colnames(dados_pivo) <- toupper(colnames(dados_pivo))
+colnames(ca)         <- toupper(colnames(ca))
+colnames(info_os)    <- toupper(colnames(info_os))
 
 
-  info_os <- info_os |>
-    dplyr::select(VALUE, LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
+# --- 2. Pivotagem (Resolvendo o erro de agrupamento) ---
+dados_processados <- dados_pivo |> dplyr::filter(ANALITO %in% ca$EL)|>
+  # Remove unidade se existir, mas mantém as outras
+  dplyr::select(-any_of("unidade")) |>
+  # Filtra apenas se a coluna METODO existir
+  dplyr::filter(!is.na(METODO)) |>
+  # Agrupamento explícito garantindo que as colunas existem
+  group_by(across(any_of(c("NUM_LAB", "CLASSE", "METODO", "BOLETIM", "ANALITO")))) |>
+  summarise(VALOR = max(VALOR, na.rm = TRUE), .groups = "drop") |>
+  tidyr::pivot_wider(
+    names_from = "ANALITO",
+    values_from = "VALOR",
+    names_sort = TRUE
+  ) 
 
-  dados <- dplyr::left_join(info_os, dados, by = "NUM_LAB")
+# --- 3. Join e Padronização de Strings ---
+info_os_clean <- info_os |>
+  dplyr::select(VALUE, LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
 
-
-
-
-dados <- dados |>
+dados <- dplyr::left_join(info_os_clean, dados_processados, by = "NUM_LAB") |>
   mutate(
-    # 1. Primeiro garantimos os 4 dígitos (como fizemos antes)
+    # Padronização 4 dígitos
     NUM_CAMPO = str_replace(NUM_CAMPO, "(\\d+)([A-Z]?)$", function(m) {
       num <- str_extract(m, "\\d+")
       letra <- str_extract(m, "[A-Z]+") |> replace_na("")
       paste0(str_pad(num, 4, pad = "0"), letra)
     }),
-    
-    # 2. Agora removemos o hífen de -A ou -D no final, deixando apenas A
-    NUM_CAMPO = str_replace(NUM_CAMPO, "-(A|DUP)$", "A")
-  )
-
-
-dados <- dados |>
-  mutate(
-    # 1. Cria a coluna ESTACAO
-    # 2. Remove "-S-" (em qualquer lugar da string)
-    # 3. Remove o "A" apenas se estiver no FINAL ($)
+    # Sufixos -A, -D, -DUP viram A
+    NUM_CAMPO = str_replace(NUM_CAMPO, "-(A|DUP|D)$", "A"),
+    # Cria ESTACAO
     ESTACAO = NUM_CAMPO |> 
       str_replace_all("-S-", "-") |> 
       str_replace("A$", "")
   )
 
-cod_classes <- c("B", "S", "R", "L", "A")
-  sufixo <- paste0("-", cod_classes[classe_am], "-")
+# --- 4. Processamento de Duplicatas e SMP ---
+# Criamos o SMP primeiro para servir de base para o VALUE das duplicatas
+dados_smp <- dados |>
+  arrange(NUM_CAMPO) |>
+  distinct(LONGITUDE, LATITUDE, METODO, .keep_all = TRUE) |>
+  mutate(COD = "SMP")
 
-  # 4. Processamento de Duplicatas (Onde estava o erro do NA)
-  dup_campo <- dados |>
-    group_by(LONGITUDE, LATITUDE) |>
-    filter(n_distinct(NUM_CAMPO) > 1) |>
-    arrange(LONGITUDE, LATITUDE, NUM_CAMPO) |>
-    mutate(COD = if_else(row_number() == 1, "SMP", "DUP")) |>
-    ungroup()
+dup_campo <- dados |>
+  group_by(LONGITUDE, LATITUDE, METODO) |>
+  filter(n_distinct(NUM_CAMPO) > 1) |>
+  arrange(LONGITUDE, LATITUDE, NUM_CAMPO) |>
+  mutate(COD = if_else(row_number() == 1, "SMP", "DUP")) |>
+  ungroup() |>
+  select(-any_of("VALUE"))
 
+# --- 5. Recuperação de VALUE para Duplicatas ---
+tabela_chaves <- dados_smp |>
+  select(VALUE, ESTACAO) |>
+  distinct(ESTACAO, .keep_all = TRUE)
 
-    # IMPORTANTE: Remover VALUE antigo antes do join para evitar VALUE.x e VALUE.y
-    dup_campo <- dup_campo |> select(-any_of("VALUE"))
+dup_campo <- dup_campo |>
+  left_join(tabela_chaves, by = "ESTACAO") |>
+  group_by(LONGITUDE, LATITUDE, METODO) |>
+  fill(VALUE, .direction = "updown") |>
+  ungroup()
 
-    # 3. Criação de dados_smp (Base de referência para os IDs)
-    if (nrow(dup_campo) > 0) {
-      dados_smp <- dados |>
-        arrange(NUM_CAMPO) |>
-        distinct(LONGITUDE, LATITUDE, .keep_all = TRUE) |>
-        mutate(
-          COD = "SMP",
-          # Garante que a ESTACAO seja limpa para o Join
-          ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE)
-        )
-    } else {
-      dados_smp <- dados |>
-        arrange(NUM_CAMPO) |>
-        mutate(
-          COD = "SMP",
-          # Garante que a ESTACAO seja limpa para o Join
-          ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE)
-        )
-    }
-    dados_smp <- dados_smp |> dplyr::arrange(VALUE)
-    
-    # Join para trazer o VALUE correto da amostra SMP correspondente
-    # Usamos distinct em dados_smp para garantir que a chave seja única
-    tabela_chaves <- dados_smp |>
-      select(VALUE, ESTACAO) |>
-      distinct(ESTACAO, .keep_all = TRUE)
+# --- 6. Preparação para Exportação ---
+dados_smp_final <- dados_smp |>
+  relocate(VALUE, COD, ESTACAO, LONGITUDE, LATITUDE, C.C, PROJETO, NUM_LAB, CLASSE, METODO, LOTE, BOLETIM)
 
-    dup_campo <- dup_campo |>
-      left_join(tabela_chaves, by = "ESTACAO") |>
-      # Se ainda restarem NAs por erro de digitação na ESTACAO, o fill resolve
-      group_by(LONGITUDE, LATITUDE) |>
-      fill(VALUE, .direction = "updown") |>
-      ungroup()
+# Filtro de linhas vazias (Analitos começam após a coluna 12)
+selcol <- colnames(dados_smp_final)[13:ncol(dados_smp_final)]
+dados_smp_final <- dados_smp_final |> 
+  filter(!if_all(all_of(selcol), is.na))
 
-    dup_campo <- dup_campo |>
-      relocate(
-        VALUE,
-        COD,
-        ESTACAO,
-        LONGITUDE,
-        LATITUDE,
-        C.C,
-        PROJETO,
-        NUM_LAB,
-        CLASSE,
-        METODO,
-        LOTE,
-        BOLETIM
-      )
+# Criar objeto SF antes de remover lat/long
+dados_smp_sf <- sf::st_as_sf(dados_smp, coords = c("LONGITUDE", "LATITUDE"), crs = 4674, remove = FALSE)
 
+# Remover coordenadas apenas do CSV final
+dados_smp_final_csv <- dados_smp_final |> select(-LONGITUDE, -LATITUDE)
 
-  # 5. Finalização e Exportação
-  dados_smp_sf <- sf::st_as_sf(
-    dados_smp,
-    coords = c("LONGITUDE", "LATITUDE"),
-    crs = 4674,
-    remove = FALSE
-  ) |>
-    select(VALUE, LONGITUDE, LATITUDE) 
-  dados_smp_sf <- unique(dados_smp_sf)
-  dados_smp_final <- dados_smp |>
-    relocate(
-      VALUE,
-      COD,
-      ESTACAO,
-      LONGITUDE,
-      LATITUDE,
-      C.C,
-      PROJETO,
-      NUM_LAB,
-      CLASSE,
-      METODO,
-      LOTE,
-      BOLETIM
-    ) |>
-    select(-LONGITUDE, -LATITUDE)
+# --- 7. Escrita de Arquivos ---
+caminho_subpasta <- dir_out
+if (!dir.exists(caminho_subpasta)) dir.create(caminho_subpasta, recursive = TRUE)
 
-  selcol <- colnames(dados_smp_final)[12:ncol(dados_smp_final)]
-  dados_smp_final <- dados_smp_final |> filter(!if_all(all_of(selcol), is.na))
+write.csv2(dados_smp_final_csv, file.path(caminho_subpasta, "mydata.csv"), fileEncoding = "latin1", row.names = FALSE)
+write.csv2(dup_campo, file.path(caminho_subpasta, "duplicatas_campo.csv"), fileEncoding = "latin1", row.names = FALSE)
+write.csv2(ca, file.path(caminho_subpasta, "myjob.csv"), fileEncoding = "latin1", row.names = FALSE)
 
-  # Escrita dos arquivos
-  caminho_subpasta <- file.path(dir_out)
-  if (!dir.exists(caminho_subpasta)) {
-    dir.create(caminho_subpasta, recursive = TRUE)
-  }
-
-  write.csv2(
-    dados_smp_final,
-    file.path(caminho_subpasta, "mydata.csv"),
-    fileEncoding = "latin1",
-    row.names = FALSE
-  )
-  # sf::write_sf(
-  #   dados_smp_sf,
-  #   file.path(caminho_subpasta, "myoutlet.shp"),
-  #   delete_dsn = TRUE
-  # )
+# Shapefile com tratamento de erro
 arquivo_shp <- file.path(caminho_subpasta, "myoutlet.shp")
-
-# 1. Forçar a limpeza de qualquer tentativa anterior (evita conflito de acesso)
 if (file.exists(arquivo_shp)) {
   file.remove(list.files(caminho_subpasta, pattern = "myoutlet", full.names = TRUE))
 }
-  suppressMessages(suppressWarnings({
-  sf::st_write(
-    obj = dados_smp_sf, 
-    dsn = arquivo_shp, 
-    driver = "ESRI Shapefile", 
-    delete_dsn = TRUE, 
-    quiet = TRUE  # O GDAL ignora avisos internos com isso
-  )
-})
-  )
-  write.csv2(
-    dup_campo,
-    file.path(caminho_subpasta, "duplicatas_campo.csv"),
-    fileEncoding = "latin1",
-    row.names = FALSE
-  )
-  write.csv2(
-    ca,
-    file.path(caminho_subpasta, "myjob.csv"),
-    fileEncoding = "latin1",
-    row.names = FALSE
-  )
+sf::st_write(dados_smp_sf, dsn = arquivo_shp, driver = "ESRI Shapefile", quiet = TRUE)
 
-  out <- list(dados_smp_final, dados_smp_sf, dup_campo, ca)
-  names(out) <- c(
-    "amostras e resultados analíticos",
-    "estações das amostras analisadas",
-    "duplicatas de campo",
-    "condições analíticas"
-  )
+out <- list(dados_smp_final, dados_smp_sf, dup_campo, ca)
+names(out) <- c("amostras e resultados analíticos", "estações das amostras analisadas", "duplicatas de campo", "condições analíticas")
 
   return(out)
 }
