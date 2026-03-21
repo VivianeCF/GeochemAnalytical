@@ -1,6 +1,5 @@
 prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
-  library(dplyr)
-  library(tidyr)
+library(tidyverse)
 
   out <- list()
 
@@ -43,12 +42,40 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
   dados <- do.call(dplyr::bind_rows, lista_dados)
   dados <- dados[!is.na(dados$METODO), ]
 
+
   info_os <- info_os |>
     dplyr::select(VALUE, LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
 
   dados <- dplyr::left_join(info_os, dados, by = "NUM_LAB")
 
-  cod_classes <- c("B", "S", "R", "L", "A")
+
+
+
+dados <- dados |>
+  mutate(
+    # 1. Primeiro garantimos os 4 dígitos (como fizemos antes)
+    NUM_CAMPO = str_replace(NUM_CAMPO, "(\\d+)([A-Z]?)$", function(m) {
+      num <- str_extract(m, "\\d+")
+      letra <- str_extract(m, "[A-Z]+") |> replace_na("")
+      paste0(str_pad(num, 4, pad = "0"), letra)
+    }),
+    
+    # 2. Agora removemos o hífen de -A ou -D no final, deixando apenas A
+    NUM_CAMPO = str_replace(NUM_CAMPO, "-(A|DUP)$", "A")
+  )
+
+
+dados <- dados |>
+  mutate(
+    # 1. Cria a coluna ESTACAO
+    # 2. Remove "-S-" (em qualquer lugar da string)
+    # 3. Remove o "A" apenas se estiver no FINAL ($)
+    ESTACAO = NUM_CAMPO |> 
+      str_replace_all("-S-", "-") |> 
+      str_replace("A$", "")
+  )
+
+cod_classes <- c("B", "S", "R", "L", "A")
   sufixo <- paste0("-", cod_classes[classe_am], "-")
 
   # 4. Processamento de Duplicatas (Onde estava o erro do NA)
@@ -57,15 +84,8 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
     filter(n_distinct(NUM_CAMPO) > 1) |>
     arrange(LONGITUDE, LATITUDE, NUM_CAMPO) |>
     mutate(COD = if_else(row_number() == 1, "SMP", "DUP")) |>
-    ungroup() |>
-    mutate(ESTACAO = gsub(sufixo, "-", NUM_CAMPO, fixed = TRUE))
+    ungroup()
 
-  
-    # Removendo sufixos de comprimento extra se houver
-    dup_campo <- dup_campo |>
-      mutate(
-        ESTACAO = if_else(nchar(ESTACAO) == 13, substr(ESTACAO, 1, 12), ESTACAO)
-      )
 
     # IMPORTANTE: Remover VALUE antigo antes do join para evitar VALUE.x e VALUE.y
     dup_campo <- dup_campo |> select(-any_of("VALUE"))
@@ -203,5 +223,6 @@ if (file.exists(arquivo_shp)) {
     "duplicatas de campo",
     "condições analíticas"
   )
+
   return(out)
 }
