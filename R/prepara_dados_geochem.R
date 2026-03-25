@@ -84,17 +84,72 @@ dados_smp_final <- dados_smp_final |>
   filter(!if_all(all_of(selcol), is.na))
 
 # Criar objeto SF antes de remover lat/long
-dados_smp_sf <- sf::st_as_sf(dados_smp, coords = c("LONGITUDE", "LATITUDE"), crs = 4674, remove = FALSE)
+# Criando o objeto espacial sem repetições de VALUE
+dados_smp_sf <- dados_smp_final |> 
+  # 1. Seleciona apenas o que importa para o mapa
+  dplyr::select(VALUE, LONGITUDE, LATITUDE) |> 
+  # 2. Remove linhas onde o VALUE e as coordenadas sejam idênticos
+  dplyr::distinct(VALUE, LONGITUDE, LATITUDE, .keep_all = TRUE) |> 
+  # 3. Transforma em SF (SAD69/SIRGAS 2000 conforme seu CRS 4674)
+  sf::st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4674, remove = FALSE)
 
 # Remover coordenadas apenas do CSV final
 dados_smp_final_csv <- dados_smp_final |> select(-LONGITUDE, -LATITUDE)
+# --- 7. Consolidação Final por NUM_LAB ---
+
+# Identificamos as colunas que NÃO são analitos (metadados)
+meta_cols <- c("VALUE", "COD", "ESTACAO", "C.C", "PROJETO", "NUM_LAB", "CLASSE", "LOTE", "BOLETIM")
+
+# Identificamos as colunas de ANALITOS (as que restaram)
+analito_cols <- setdiff(colnames(dados_smp_final_csv), c(meta_cols, "METODO"))
+
+dados_smp_final_csv <- dados_smp_final_csv |>
+  # 1. Removemos a coluna METODO conforme solicitado
+  dplyr::select(-any_of("METODO")) |>
+  # 2. Agrupamos pelos metadados principais
+  dplyr::group_by(across(any_of(meta_cols))) |>
+  # 3. Para cada analito, pegamos o valor que não seja NA
+  # Se houver mais de um valor, o max() garante que pegamos o dado analítico
+  dplyr::summarise(
+    across(all_of(analito_cols), ~ if(all(is.na(.))) NA_real_ else max(., na.rm = TRUE)),
+    .groups = "drop"
+  ) |>
+  # 4. Reorganiza as colunas para manter o padrão original
+  dplyr::relocate(all_of(meta_cols))
+# --- 8. Consolidação Final de Duplicatas de Campo ---
+
+# Definimos os metadados específicos para as duplicatas
+meta_cols_dup <- c("VALUE", "COD", "ESTACAO", "C.C", "PROJETO", "NUM_LAB", "CLASSE", "LOTE", "BOLETIM", "NUM_CAMPO")
+
+# Identificamos as colunas de ANALITOS dinamicamente
+analito_cols_dup <- setdiff(colnames(dup_campo), c(meta_cols_dup, "METODO", "LONGITUDE", "LATITUDE"))
+
+dup_campo_final_csv <- dup_campo |>
+  # 1. Removemos as coordenadas e o método para o CSV
+  dplyr::select(-any_of(c("METODO", "LONGITUDE", "LATITUDE"))) |>
+  # 2. Agrupamos pelos identificadores da amostra
+  dplyr::group_by(across(any_of(meta_cols_dup))) |>
+  # 3. Consolidação: busca o primeiro valor que não seja NA para cada analito
+  dplyr::summarise(
+    across(all_of(analito_cols_dup), ~ {
+      val_limpo <- .[!is.na(.)]
+      if (length(val_limpo) == 0) NA_real_ else val_limpo[1]
+    }),
+    .groups = "drop"
+  ) |>
+  # 4. Organização estética
+  dplyr::relocate(all_of(meta_cols_dup))
+
+# Opcional: Filtro para garantir que não exportamos linhas sem nenhum resultado analítico
+dup_campo_final_csv <- dup_campo_final_csv |>
+  dplyr::filter(!if_all(all_of(analito_cols_dup), is.na))
 
 # --- 7. Escrita de Arquivos ---
 caminho_subpasta <- dir_out
 if (!dir.exists(caminho_subpasta)) dir.create(caminho_subpasta, recursive = TRUE)
 
 write.csv2(dados_smp_final_csv, file.path(caminho_subpasta, "mydata.csv"), fileEncoding = "latin1", row.names = FALSE)
-write.csv2(dup_campo, file.path(caminho_subpasta, "duplicatas_campo.csv"), fileEncoding = "latin1", row.names = FALSE)
+write.csv2(dup_campo_final_csv , file.path(caminho_subpasta, "duplicatas_campo.csv"), fileEncoding = "latin1", row.names = FALSE)
 write.csv2(ca, file.path(caminho_subpasta, "myjob.csv"), fileEncoding = "latin1", row.names = FALSE)
 
 # Shapefile com tratamento de erro
@@ -104,7 +159,7 @@ if (file.exists(arquivo_shp)) {
 }
 sf::st_write(dados_smp_sf, dsn = arquivo_shp, driver = "ESRI Shapefile", quiet = TRUE)
 
-out <- list(dados_smp_final, dados_smp_sf, dup_campo, ca)
+out <- list(dados_smp_final_csv, dados_smp_sf, dup_campo_final_csv, ca)
 names(out) <- c("amostras e resultados analíticos", "estações das amostras analisadas", "duplicatas de campo", "condições analíticas")
 
   return(out)
