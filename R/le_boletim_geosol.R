@@ -24,7 +24,7 @@ le_boletim_geosol <- function(
   dir_out,
   tipo = "Química"
 ) {
-  ## Diretórios de entrada dos dados
+   ## Diretórios de entrada dos dados
   classes <-
     c(
       "Concentrado de bateia",
@@ -123,6 +123,7 @@ le_boletim_geosol <- function(
         indices_metodo[1],
         (indices_metodo[2] + 1):n
       ]))
+      metodo <- gsub("_", ".", metodo, fixed = TRUE)
       analito <- as.character(t(df_tudo[
         indices_metodo[1] + 1,
         (indices_metodo[2] + 1):n
@@ -443,34 +444,53 @@ le_boletim_geosol <- function(
     ## Retira linhas com valor = NA
     df2 <- df2[!is.na(df2$valor), ]
 
-    df_sc$classe_am <- gsub(nome_bol[classe_am], "SMP", df_sc$classe_am)
+
     ## QAQC
-    df_bk <-
-      df_sc[df_sc$NUM_LAB == "BRANCO_PREP", ]
+## --- BLOCO QAQC DEFINITIVO (Mover para antes do recode de classes) ---
 
-    df_rp <- df_sc[
-      df_sc$classe_am == "REP" |
-        df_sc$classe_am == "DUP" |
-        df_sc$classe_am == "STD",
-    ]
+# 1. Backup da coluna original para garantir o preenchimento de COD
+df_sc$COD <- toupper(trimws(as.character(df_sc$classe_am)))
+df_sc$NUM_LAB <- toupper(trimws(as.character(df_sc$NUM_LAB)))
 
-    df_sd <- df_sc[df_sc$NUM_LAB == "STD", ]
+# 2. Captura os Brancos
+df_bk <- df_sc[df_sc$NUM_LAB == "BRANCO_PREP", ]
 
-    QAQC_orig <- rbind(df_rp, df_bk, df_sd)
+if(nrow(df_bk) > 0) df_bk$COD <- "BRANCO_PREP"
 
-    # colnames(QAQC_orig) <- gsub("xx", "", colnames(QAQC_orig))
-    QAQC_orig <- QAQC_orig |>
-      dplyr::relocate(c(Boletim), .after = classe_am)
-    QAQC_orig <- QAQC_orig[!is.na(QAQC_orig$NUM_LAB), ]
-    # QAQC_orig$ID <- 1:nrow(QAQC_orig)
-    # QAQC_orig <- QAQC_orig |> dplyr::relocate(ID)
+# 3. Captura Duplicatas, Replicatas e Padrões
+# Use os nomes ORIGINAIS que vêm do laboratório aqui
+df_rp <- df_sc[df_sc$COD %in% c("REP", "DUP", "STD", "DUPLICATA", "REPLICATA"), ]
+
+# 4. Captura Padrões pelo NUM_LAB (ex: OREAS)
+# Se o NUM_LAB começa com OREAS ou contém STD, tratamos como STD
+df_sd <- df_sc[grepl("OREAS|STD", df_sc$NUM_LAB), ]
+if(nrow(df_sd) > 0) df_sd$COD <- "STD"
+    
+df_sc$classe_am <- gsub(nome_bol[classe_am], "SMP", df_sc$classe_am)
+
+# 5. Une e remove duplicados
+QAQC_orig <- dplyr::bind_rows(df_rp, df_bk, df_sd) |> 
+  dplyr::distinct() |>
+  dplyr::filter(!is.na(NUM_LAB))
+
+# Remove a coluna COD do df_sc para não dar conflito no join futuro se necessário
+# df_sc$COD <- NULL
+
+## --- SEGUE O PROCESSO DE PIVOT ---    
+    # # colnames(QAQC_orig) <- gsub("xx", "", colnames(QAQC_orig))
+QAQC_orig <- QAQC_orig |>
+  dplyr::relocate(c(COD, Boletim), .after = classe_am) |>
+  # 1. Substitui strings vazias por NA em todas as colunas
+  dplyr::mutate(across(everything(), ~dplyr::na_if(., ""))) |>
+  # 2. Substitui o traço duplo "--" por NA em todas as colunas
+  dplyr::mutate(across(everything(), ~dplyr::na_if(., "--")))
 
     ## Pivoteia os dados analíticos
     QAQC_orig_pivo <- QAQC_orig |>
       tidyr::pivot_longer(
-        cols = 4:(ncol(QAQC_orig)),
+        cols = 5:(ncol(QAQC_orig)),
         names_to = "analito",
-        values_to = "valor"
+        values_to = "valor", values_drop_na = TRUE
       )
     ## Cria colunas analito e unidade
     ## Separa apenas na primeira ocorrência de "_" para lidar com nomes com múltiplos underscores
@@ -531,15 +551,16 @@ le_boletim_geosol <- function(
         -Qualificador_Temp,
         -Valor_Num_Char,
         -Valor_Numerico_Convertido
-      )
+      ) 
 
     ## Volta para a forma inicioal (sem NA)
-    QAQC_orig <-
+    QAQC_orig <-QAQC_orig_pivo |> 
       tidyr::pivot_wider(
-        QAQC_orig_pivo,
         names_from = "analito",
         values_from = "valor"
       )
+    
+ 
     # Substitui dados qualificados
     ### Substitui srting < por - e elimina >
     QAQC_transf <- data.frame(lapply(QAQC_orig, function(x) {
@@ -576,10 +597,12 @@ le_boletim_geosol <- function(
     QAQC_transf <-
       QAQC_transf |>
       dplyr::mutate(dplyr::across(
-        6:(ncol(QAQC_transf)),
+        7:(ncol(QAQC_transf)),
         ~ suppressWarnings(as.numeric(.))
       ))
     QAQC_05ld <- ltdl.fix.df(QAQC_transf)
+
+  
 
     # Cria tabela com a relação de boletim e laboratório
     lab_bol <- unique(ca_da[, c('Boletim', 'Laborat\u00f3rio')])
@@ -631,8 +654,7 @@ le_boletim_geosol <- function(
       all.x = FALSE
     )
     ref <- unique(ref)
-    colnames(QAQC_05ld) <- gsub("classe_am", "COD", colnames(QAQC_05ld))
-    colnames(QAQC_orig) <- gsub("classe_am", "COD", colnames(QAQC_orig))
+
 
     colnames(df_sc_05ld) <- gsub("classe_am", "CLASSE", colnames(df_sc_05ld))
     colnames(dpivo) <- gsub("classe_am", "CLASSE", colnames(dpivo))
