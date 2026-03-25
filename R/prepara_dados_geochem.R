@@ -30,7 +30,7 @@ dados_processados <- dados_pivo |> dplyr::filter(ANALITO %in% ca$EL)|>
 
 # --- 3. Join e Padronização de Strings ---
 info_os_clean <- info_os |>
-  dplyr::select(VALUE, LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
+  dplyr::select(LONGITUDE, LATITUDE, NUM_CAMPO, LOTE, NUM_LAB, C.C, PROJETO)
 
 dados <- dplyr::left_join(info_os_clean, dados_processados, by = "NUM_LAB") |>
   mutate(
@@ -60,32 +60,43 @@ dup_campo <- dados |>
   filter(n_distinct(NUM_CAMPO) > 1) |>
   arrange(LONGITUDE, LATITUDE, NUM_CAMPO) |>
   mutate(COD = if_else(row_number() == 1, "SMP", "DUP")) |>
-  ungroup() |>
-  select(-any_of("VALUE"))
-
-# --- 5. Recuperação de VALUE para Duplicatas ---
-tabela_chaves <- dados_smp |>
-  select(VALUE, ESTACAO) |>
-  distinct(ESTACAO, .keep_all = TRUE)
-
-dup_campo <- dup_campo |>
-  left_join(tabela_chaves, by = "ESTACAO") |>
-  group_by(LONGITUDE, LATITUDE, METODO) |>
-  fill(VALUE, .direction = "updown") |>
-  ungroup()
+  ungroup() 
 
 # --- 6. Preparação para Exportação ---
 dados_smp_final <- dados_smp |>
-  relocate(VALUE, COD, ESTACAO, LONGITUDE, LATITUDE, C.C, PROJETO, NUM_LAB, CLASSE, METODO, LOTE, BOLETIM)
+  relocate(COD, ESTACAO, LONGITUDE, LATITUDE, C.C, PROJETO, NUM_LAB, CLASSE, METODO, LOTE, BOLETIM)
 
 # Filtro de linhas vazias (Analitos começam após a coluna 12)
 selcol <- colnames(dados_smp_final)[13:ncol(dados_smp_final)]
 dados_smp_final <- dados_smp_final |> 
   filter(!if_all(all_of(selcol), is.na))
 
+
+
+# Remover coordenadas apenas do CSV final
+
+# --- 7. Consolidação Final por NUM_LAB ---
+
+# Identificamos as colunas que NÃO são analitos (metadados)
+meta_cols <- c( "LONGITUDE", "LATITUDE", "COD", "ESTACAO", "C.C", "PROJETO", "NUM_LAB", "CLASSE", "LOTE", "BOLETIM")
+
+# Identificamos as colunas de ANALITOS (as que restaram)
+analito_cols <- setdiff(colnames(dados_smp_final), c(meta_cols, "METODO"))
+
+dados_smp_final_csv <- dados_smp_final |>
+  dplyr::select(-any_of("METODO")) |>
+  dplyr::group_by(across(any_of(meta_cols))) |>
+  dplyr::summarise(
+    across(all_of(analito_cols), ~ if(all(is.na(.))) NA_real_ else max(., na.rm = TRUE)),
+    .groups = "drop"
+  ) |> 
+  # Use n() para garantir que a sequência bata exatamente com o novo número de linhas
+  dplyr::mutate(VALUE = 1:n()) |> 
+  dplyr::relocate(VALUE, all_of(meta_cols)) 
+
 # Criar objeto SF antes de remover lat/long
 # Criando o objeto espacial sem repetições de VALUE
-dados_smp_sf <- dados_smp_final |> 
+dados_smp_sf <- dados_smp_final_csv |> 
   # 1. Seleciona apenas o que importa para o mapa
   dplyr::select(VALUE, LONGITUDE, LATITUDE) |> 
   # 2. Remove linhas onde o VALUE e as coordenadas sejam idênticos
@@ -93,33 +104,12 @@ dados_smp_sf <- dados_smp_final |>
   # 3. Transforma em SF (SAD69/SIRGAS 2000 conforme seu CRS 4674)
   sf::st_as_sf(coords = c("LONGITUDE", "LATITUDE"), crs = 4674, remove = FALSE)
 
-# Remover coordenadas apenas do CSV final
-dados_smp_final_csv <- dados_smp_final |> select(-LONGITUDE, -LATITUDE)
-# --- 7. Consolidação Final por NUM_LAB ---
+  dados_smp_final_csv <- dados_smp_final_csv |> dplyr::select(-LONGITUDE, -LATITUDE)
 
-# Identificamos as colunas que NÃO são analitos (metadados)
-meta_cols <- c("VALUE", "COD", "ESTACAO", "C.C", "PROJETO", "NUM_LAB", "CLASSE", "LOTE", "BOLETIM")
-
-# Identificamos as colunas de ANALITOS (as que restaram)
-analito_cols <- setdiff(colnames(dados_smp_final_csv), c(meta_cols, "METODO"))
-
-dados_smp_final_csv <- dados_smp_final_csv |>
-  # 1. Removemos a coluna METODO conforme solicitado
-  dplyr::select(-any_of("METODO")) |>
-  # 2. Agrupamos pelos metadados principais
-  dplyr::group_by(across(any_of(meta_cols))) |>
-  # 3. Para cada analito, pegamos o valor que não seja NA
-  # Se houver mais de um valor, o max() garante que pegamos o dado analítico
-  dplyr::summarise(
-    across(all_of(analito_cols), ~ if(all(is.na(.))) NA_real_ else max(., na.rm = TRUE)),
-    .groups = "drop"
-  ) |>
-  # 4. Reorganiza as colunas para manter o padrão original
-  dplyr::relocate(all_of(meta_cols))
 # --- 8. Consolidação Final de Duplicatas de Campo ---
 
 # Definimos os metadados específicos para as duplicatas
-meta_cols_dup <- c("VALUE", "COD", "ESTACAO", "C.C", "PROJETO", "NUM_LAB", "CLASSE", "LOTE", "BOLETIM", "NUM_CAMPO")
+meta_cols_dup <- c("COD", "ESTACAO", "C.C", "PROJETO", "NUM_LAB", "CLASSE", "LOTE", "BOLETIM", "NUM_CAMPO")
 
 # Identificamos as colunas de ANALITOS dinamicamente
 analito_cols_dup <- setdiff(colnames(dup_campo), c(meta_cols_dup, "METODO", "LONGITUDE", "LATITUDE"))
