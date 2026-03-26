@@ -100,7 +100,7 @@ ui <- dashboardPage(
     )
   ),
 
-  # 3. Corpo (Body)
+    # 3. Corpo (Body)
   dashboardBody(
     tags$style(HTML(
       "
@@ -448,9 +448,18 @@ server <- function(input, output, session) {
     dir.create(td_up, recursive = TRUE)
     dir.create(td_os, recursive = TRUE)
 
-    utils::unzip(input$upload$datapath, exdir = td_up)
-    utils::unzip(input$upload_os$datapath, exdir = td_os)
+ # Localize estas linhas:
+# utils::unzip(input$upload$datapath, exdir = td_up)
+# utils::unzip(input$upload_os$datapath, exdir = td_os)
 
+# Substitua por:
+if (requireNamespace("zip", quietly = TRUE)) {
+  zip::unzip(input$upload$datapath, exdir = td_up)
+  zip::unzip(input$upload_os$datapath, exdir = td_os)
+} else {
+  utils::unzip(input$upload$datapath, exdir = td_up)
+  utils::unzip(input$upload_os$datapath, exdir = td_os)
+}
     # Atualiza a lista de caminhos para limpeza automática
     session_temp_paths(c(td_up, td_os, main_out))
 
