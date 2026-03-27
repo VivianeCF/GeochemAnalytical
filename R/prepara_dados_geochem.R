@@ -6,7 +6,7 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
   colnames(dados_pivo) <- toupper(colnames(dados_pivo))
   colnames(ca)         <- toupper(colnames(ca))
   colnames(info_os)    <- toupper(colnames(info_os))
-
+  colnames(ca) <- gsub("ANALITO", "EL", colnames(ca) )
   # --- 2. Pivotagem ---
   dados_processados <- dados_pivo |> 
     dplyr::filter(ANALITO %in% ca$EL) |>
@@ -61,20 +61,27 @@ prepara_dados_geochem <- function(dir_out, info_os, ca, dados_pivo, classe_am) {
   meta_cols <- c("LONGITUDE", "LATITUDE", "COD", "ESTACAO", "C.C", "PROJETO", "NUM_LAB", "CLASSE", "LOTE", "BOLETIM")
   analito_cols <- setdiff(colnames(dados_smp_final), c(meta_cols, "METODO"))
 
-  if (length(analito_cols) > 0) {
+if (length(analito_cols) > 0) {
     dados_smp_final_csv <- dados_smp_final |>
       dplyr::select(-any_of("METODO")) |>
       dplyr::group_by(across(any_of(meta_cols))) |>
       dplyr::summarise(
-        across(all_of(analito_cols), ~ if(all(is.na(.))) NA_real_ else max(., na.rm = TRUE)),
+        across(all_of(analito_cols), function(x) {
+          # Se a coluna for toda NA, retorna um NA genérico
+          if (all(is.na(x))) return(NA) 
+          
+          # Se for numérica (outros métodos), aplica max
+          if (is.numeric(x)) {
+            return(max(x, na.rm = TRUE))
+          } else {
+            # Se for character/factor (Mineralogia SEMIQ), 
+            # pegamos o primeiro valor não NA encontrado no grupo
+            return(as.character(x[!is.na(x)][1]))
+          }
+        }),
         .groups = "drop"
       )
-  } else {
-    dados_smp_final_csv <- dados_smp_final |>
-      dplyr::select(-any_of("METODO")) |>
-      dplyr::distinct(across(any_of(meta_cols)))
   }
-
   # Criar VALUE para indexação
   dados_smp_final_csv <- dados_smp_final_csv |> dplyr::mutate(VALUE = 1:n()) |> dplyr::relocate(VALUE)
 

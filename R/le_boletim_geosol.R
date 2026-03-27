@@ -996,7 +996,7 @@ QAQC_orig <- QAQC_orig |>
 
 df_dados_brutos <- do.call(dplyr::bind_rows, datalist3)
 
-df_dados_brutos$CLASSE <- classe_am
+df_dados_brutos$CLASSE <- classes[classe_am]
 
 ca <- do.call(dplyr::bind_rows, datalist2)
 # Esta função remove aspas e substitui ponto e vírgula por vírgula simples
@@ -1017,6 +1017,7 @@ limpar_texto <- function(df) {
   
  analitos <- ca[ca$metodo %in% c("CONT_PINTAS", "ANALISE_SEMIQ", "ANALISE_QUANT"), "analito"]  
  preparacao <- ca[!(ca$metodo %in% c("CONT_PINTAS", "ANALISE_SEMIQ", "ANALISE_QUANT")), "analito"]      
+ca <- ca |> dplyr::filter(analito %in% analitos)
 
 df_pivo <- df_dados_brutos |> 
   tidyr::pivot_longer(
